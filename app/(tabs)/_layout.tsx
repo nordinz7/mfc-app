@@ -1,8 +1,8 @@
-import { Tabs } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSettings } from '@/contexts/SettingsContext';
 import { FontSizes } from '@/constants/theme';
+import { useSettings } from '@/contexts/SettingsContext';
+import { MaterialIcons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
 

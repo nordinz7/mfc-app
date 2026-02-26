@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Switch, ActivityIndicator, Alert } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useSQLiteContext } from 'expo-sqlite';
-import { format } from 'date-fns';
-import { useSettings } from '@/contexts/SettingsContext';
-import { AppColors, FontSizes, Spacing, Radius } from '@/constants/theme';
+import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { Lang } from '@/constants/translations';
+import { useSettings } from '@/contexts/SettingsContext';
 import { createAndShareBackup } from '@/utils/backup';
+import { MaterialIcons } from '@expo/vector-icons';
+import { format } from 'date-fns';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 function makeStyles(c: AppColors) {
   return StyleSheet.create({

@@ -1,22 +1,28 @@
-import { useState, useCallback, useMemo } from 'react';
+import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { useSettings } from '@/contexts/SettingsContext';
 import {
-  View, Text, FlatList, TouchableOpacity,
-  StyleSheet, Alert, RefreshControl, TextInput,
-} from 'react-native';
-import { useSQLiteContext } from 'expo-sqlite';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
-import {
-  getAllOrdersWithCustomer,
-  getRecentOrdersWithCustomer,
-  getTodayOrdersWithCustomer,
-  softDeleteOrder,
-  OrderWithCustomer,
+    getAllOrdersWithCustomer,
+    getRecentOrdersWithCustomer,
+    getTodayOrdersWithCustomer,
+    OrderWithCustomer,
+    softDeleteOrder,
 } from '@/services/database';
 import { sendWhatsAppInvoice } from '@/utils/whatsapp';
-import { useSettings } from '@/contexts/SettingsContext';
-import { AppColors, FontSizes, Spacing, Radius } from '@/constants/theme';
+import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { format } from 'date-fns';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useMemo, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 type FilterMode = 'today' | 'recent' | 'all';
 

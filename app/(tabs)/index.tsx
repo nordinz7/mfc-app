@@ -1,14 +1,20 @@
-import { useState, useCallback, useMemo } from 'react';
-import {
-  View, Text, FlatList, TouchableOpacity,
-  StyleSheet, Alert, RefreshControl, TextInput,
-} from 'react-native';
-import { useSQLiteContext } from 'expo-sqlite';
-import { useFocusEffect, useRouter } from 'expo-router';
-import { MaterialIcons } from '@expo/vector-icons';
-import { getActiveCustomers, softDeleteCustomer, Customer } from '@/services/database';
+import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
-import { AppColors, FontSizes, Spacing, Radius } from '@/constants/theme';
+import { Customer, getActiveCustomers, softDeleteCustomer } from '@/services/database';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useMemo, useState } from 'react';
+import {
+    Alert,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 
 function makeStyles(c: AppColors) {
   return StyleSheet.create({
