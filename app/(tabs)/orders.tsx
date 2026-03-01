@@ -264,15 +264,15 @@ export default function OrdersScreen() {
   const displayed = orders;
   const totalAmount = displayed.reduce((s, o) => s + o.amount, 0);
 
-  // Active label for date chip
+  // Active label for date chip (short when selected, no text when idle)
   const dateChipLabel = selectedDate && filter === 'date'
-    ? format(parseISO(selectedDate), 'dd/MM/yyyy')
-    : tr.filterByDate;
+    ? format(parseISO(selectedDate), 'dd/MM')
+    : null;
 
-  // Active label for customer chip
+  // Active label for customer chip (short when selected, no text when idle)
   const customerChipLabel = selectedCustomerId && filter === 'customer'
-    ? customerOptions.find(c => c.id === selectedCustomerId)?.label ?? tr.filterByCustomer
-    : tr.filterByCustomer;
+    ? customerOptions.find(c => c.id === selectedCustomerId)?.label ?? null
+    : null;
 
   const renderItem = ({ item }: { item: OrderWithCustomer }) => (
     <View style={S.card}>
@@ -358,35 +358,47 @@ export default function OrdersScreen() {
             <Text style={[S.chipText, filter === 'yesterday' && S.chipTextActive]}>{tr.yesterday}</Text>
           </TouchableOpacity>
 
-          {/* Date dropdown chip */}
+          {/* Date dropdown chip (icon-based) */}
           <TouchableOpacity
             style={[S.chip, filter === 'date' && S.chipActive]}
             onPress={() => setShowDateModal(true)}
           >
-            <Text style={[S.chipText, filter === 'date' && S.chipTextActive]} numberOfLines={1}>
-              {dateChipLabel}
-            </Text>
+            <MaterialIcons
+              name="calendar-today"
+              size={16}
+              color={filter === 'date' ? '#FFFFFF' : colors.textSecondary}
+            />
+            {dateChipLabel && (
+              <Text style={[S.chipText, filter === 'date' && S.chipTextActive]} numberOfLines={1}>
+                {dateChipLabel}
+              </Text>
+            )}
             <MaterialIcons
               name="arrow-drop-down"
               size={18}
               color={filter === 'date' ? '#FFFFFF' : colors.textSecondary}
-              style={S.chipIcon}
             />
           </TouchableOpacity>
 
-          {/* Customer dropdown chip */}
+          {/* Customer dropdown chip (icon-based) */}
           <TouchableOpacity
             style={[S.chip, filter === 'customer' && S.chipActive]}
             onPress={() => setShowCustomerModal(true)}
           >
-            <Text style={[S.chipText, filter === 'customer' && S.chipTextActive]} numberOfLines={1}>
-              {customerChipLabel}
-            </Text>
+            <MaterialIcons
+              name="person"
+              size={16}
+              color={filter === 'customer' ? '#FFFFFF' : colors.textSecondary}
+            />
+            {customerChipLabel && (
+              <Text style={[S.chipText, filter === 'customer' && S.chipTextActive]} numberOfLines={1}>
+                {customerChipLabel}
+              </Text>
+            )}
             <MaterialIcons
               name="arrow-drop-down"
               size={18}
               color={filter === 'customer' ? '#FFFFFF' : colors.textSecondary}
-              style={S.chipIcon}
             />
           </TouchableOpacity>
         </View>

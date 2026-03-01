@@ -304,13 +304,14 @@ export default function CustomersScreen() {
       });
 
       const contactList: ContactEntry[] = [];
+      let idx = 0;
       for (const c of data) {
         if (!c.phoneNumbers?.length) continue;
         const name = c.name || c.firstName || '';
         if (!name) continue;
         for (const ph of c.phoneNumbers) {
           if (ph.number) {
-            const key = `${name}:${ph.number}`;
+            const key = `${idx++}:${name}:${ph.number}`;
             contactList.push({ name, phone: ph.number, key });
           }
         }
