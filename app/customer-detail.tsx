@@ -43,10 +43,23 @@ function makeStyles(c: AppColors) {
       shadowOpacity: 0.08,
       shadowRadius: 4,
     },
+    balanceCardDue:     { borderLeftWidth: 4, borderLeftColor: c.danger },
+    balanceCardSettled: { borderLeftWidth: 4, borderLeftColor: c.success },
+    balanceCardCredit:  { borderLeftWidth: 4, borderLeftColor: c.primary },
     balanceLabel:  { fontSize: FontSizes.md, color: c.textSecondary, fontWeight: '600' },
     balanceAmount: { fontSize: FontSizes.xxxl, fontWeight: '800', marginTop: 4 },
     balanceDue:    { color: c.danger },
     balancePaid:   { color: c.success },
+    balanceCredit: { color: c.primary },
+    statusBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      marginTop: 6, paddingHorizontal: Spacing.md, paddingVertical: 4,
+      borderRadius: 12,
+    },
+    statusBadgeDue:     { backgroundColor: c.dangerLight },
+    statusBadgeSettled: { backgroundColor: c.successLight },
+    statusBadgeCredit:  { backgroundColor: c.primaryLight },
+    statusBadgeText:    { fontSize: FontSizes.sm, fontWeight: '600' },
     balanceRow: {
       flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: Spacing.md,
       paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: c.separator,
@@ -198,13 +211,41 @@ export default function CustomerDetailScreen() {
         </Text>
       </View>
 
-      <View style={S.balanceCard}>
-        <Text style={S.balanceLabel}>{tr.balanceDue}</Text>
-        <Text style={[S.balanceAmount, balance.balance > 0 ? S.balanceDue : S.balancePaid]}>
-          ₹{Math.abs(balance.balance).toFixed(2)}
+      <View style={[
+        S.balanceCard,
+        balance.balance > 0 ? S.balanceCardDue
+          : balance.balance < 0 ? S.balanceCardCredit
+          : S.balanceCardSettled,
+      ]}>
+        <Text style={S.balanceLabel}>
+          {balance.balance > 0 ? tr.balanceDue : balance.balance < 0 ? tr.advanceCredit : tr.balanceDue}
         </Text>
-        {balance.balance <= 0 && (
-          <Text style={{ color: colors.success, fontSize: FontSizes.sm, marginTop: 2 }}>{tr.paidInFull}</Text>
+        <Text style={[
+          S.balanceAmount,
+          balance.balance > 0 ? S.balanceDue
+            : balance.balance < 0 ? S.balanceCredit
+            : S.balancePaid,
+        ]}>
+          {balance.balance < 0 ? '+' : ''}₹{Math.abs(balance.balance).toFixed(2)}
+        </Text>
+        {/* Status badge */}
+        {balance.balance > 0 && (
+          <View style={[S.statusBadge, S.statusBadgeDue]}>
+            <MaterialIcons name="warning" size={14} color={colors.danger} />
+            <Text style={[S.statusBadgeText, { color: colors.danger }]}>{tr.due}</Text>
+          </View>
+        )}
+        {balance.balance === 0 && (
+          <View style={[S.statusBadge, S.statusBadgeSettled]}>
+            <MaterialIcons name="check-circle" size={14} color={colors.success} />
+            <Text style={[S.statusBadgeText, { color: colors.success }]}>{tr.allSettled}</Text>
+          </View>
+        )}
+        {balance.balance < 0 && (
+          <View style={[S.statusBadge, S.statusBadgeCredit]}>
+            <MaterialIcons name="account-balance-wallet" size={14} color={colors.primary} />
+            <Text style={[S.statusBadgeText, { color: colors.primary }]}>{tr.customerHasCredit}</Text>
+          </View>
         )}
         <View style={S.balanceRow}>
           <View style={S.balanceDetail}>

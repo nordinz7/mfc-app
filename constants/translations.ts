@@ -138,6 +138,10 @@ const en = {
   transactionHistory: 'Transaction History',
   balanceDue: 'Balance Due',
   paidInFull: 'Paid in Full',
+  allSettled: 'All Settled',
+  advanceCredit: 'Advance Credit',
+  customerHasCredit: 'Customer has advance credit',
+  noOutstanding: 'No outstanding balance',
   due: 'due',
   // Statement
   viewStatement: 'View Statement',
@@ -308,6 +312,10 @@ const ta: typeof en = {
   transactionHistory: 'பரிவர்த்தனை வரலாறு',
   balanceDue: 'நிலுவை தொகை',
   paidInFull: 'முழுமையாக செலுத்தப்பட்டது',
+  allSettled: 'முழுமையாக தீர்க்கப்பட்டது',
+  advanceCredit: 'முன்பணம்',
+  customerHasCredit: 'வாடிக்கையாளருக்கு முன்பணம் உள்ளது',
+  noOutstanding: 'நிலுவை இல்லை',
   due: 'நிலுவை',
   // Statement
   viewStatement: 'அறிக்கை பார்',
