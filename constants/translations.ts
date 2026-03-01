@@ -201,6 +201,17 @@ const en = {
   bulkDeleteConfirm: 'Delete Customers',
   bulkDeleteMsg: (count: number) => `Delete ${count} selected customer${count === 1 ? '' : 's'}? This cannot be undone.`,
   bulkDeleteSkipped: (deleted: number, skipped: number) => `Deleted ${deleted} customer${deleted === 1 ? '' : 's'}. ${skipped} customer${skipped === 1 ? '' : 's'} with orders could not be deleted.`,
+  // Transactions tab
+  transactions: 'Transactions',
+  noTransactionsFound: 'No transactions found.',
+  tapInfo: 'Payments and orders will appear here.',
+  credit: 'Payment',
+  debit: 'Order',
+  transaction: 'transaction',
+  transactions_plural: 'transactions',
+  totalReceived: 'Received',
+  totalOrdered: 'Ordered',
+  call: 'Call',
 };
 
 const ta: typeof en = {
@@ -392,6 +403,17 @@ const ta: typeof en = {
   bulkDeleteConfirm: 'வாடிக்கையாளர்களை நீக்கு',
   bulkDeleteMsg: (count: number) => `${count} தேர்ந்தெடுக்கப்பட்ட வாடிக்கையாளர்களை நீக்கவா? இதை மீட்க முடியாது.`,
   bulkDeleteSkipped: (deleted: number, skipped: number) => `${deleted} வாடிக்கையாளர்கள் நீக்கப்பட்டனர். ${skipped} ஆர்டர்கள் உள்ள வாடிக்கையாளர்களை நீக்க முடியவில்லை.`,
+  // Transactions tab
+  transactions: 'பரிவர்த்தனைகள்',
+  noTransactionsFound: 'பரிவர்த்தனைகள் இல்லை.',
+  tapInfo: 'பணம் மற்றும் ஆர்டர்கள் இங்கு தோன்றும்.',
+  credit: 'பணம்',
+  debit: 'ஆர்டர்',
+  transaction: 'பரிவர்த்தனை',
+  transactions_plural: 'பரிவர்த்தனைகள்',
+  totalReceived: 'பெற்றது',
+  totalOrdered: 'ஆர்டர்',
+  call: 'அழைப்பு',
 };
 
 export const translations = { en, ta };

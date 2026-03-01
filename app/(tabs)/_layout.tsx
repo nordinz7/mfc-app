@@ -50,6 +50,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="transactions"
+        options={{
+          title: tr.transactions,
+          tabBarIcon: ({ color }) => <TabIcon name="swap-horiz" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: tr.settings,

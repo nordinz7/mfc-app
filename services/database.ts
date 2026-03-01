@@ -44,6 +44,13 @@ export interface TransactionWithQuantity extends Transaction {
   quantity: number;
 }
 
+export interface TransactionWithCustomer extends Transaction {
+  customer_name: string;
+  customer_place: string;
+  customer_phone: string;
+  quantity: number;
+}
+
 export interface Statement {
   id: number;
   customer_id: number;
@@ -523,6 +530,34 @@ export async function deleteTransaction(
   db: SQLite.SQLiteDatabase, id: number,
 ): Promise<void> {
   await db.runAsync(`DELETE FROM transactions WHERE id = ?`, [id]);
+}
+
+export async function getTransactionsByDateRange(
+  db: SQLite.SQLiteDatabase, from: string, to: string,
+): Promise<TransactionWithCustomer[]> {
+  return db.getAllAsync<TransactionWithCustomer>(
+    `SELECT t.*, c.name as customer_name, c.place as customer_place, c.phone_number as customer_phone,
+            COALESCE(o.quantity, 0) as quantity
+     FROM transactions t
+     JOIN customers c ON t.customer_id = c.id
+     LEFT JOIN orders o ON t.order_id = o.id
+     WHERE t.date >= ? AND t.date < date(?, '+1 day')
+     ORDER BY t.date DESC, t.id DESC`,
+    [from, to]
+  );
+}
+
+export async function getAllTransactionsWithCustomer(
+  db: SQLite.SQLiteDatabase,
+): Promise<TransactionWithCustomer[]> {
+  return db.getAllAsync<TransactionWithCustomer>(
+    `SELECT t.*, c.name as customer_name, c.place as customer_place, c.phone_number as customer_phone,
+            COALESCE(o.quantity, 0) as quantity
+     FROM transactions t
+     JOIN customers c ON t.customer_id = c.id
+     LEFT JOIN orders o ON t.order_id = o.id
+     ORDER BY t.date DESC, t.id DESC`
+  );
 }
 
 // ─── Statements ───────────────────────────────────────────────────────────────
