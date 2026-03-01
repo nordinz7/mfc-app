@@ -1,24 +1,23 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
-    Customer, Transaction,
-    getCustomerBalance,
-    getCustomerById, getTransactionsByCustomer,
-    insertStatement, softDeleteTransaction,
+  Customer, Transaction,
+  getCustomerBalance,
+  getCustomerById, getTransactionsByCustomer,
+  softDeleteTransaction,
 } from '@/services/database';
-import { sendWhatsAppStatement } from '@/utils/whatsapp';
 import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text, TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text, TouchableOpacity,
+  View,
 } from 'react-native';
 
 function makeStyles(c: AppColors) {
@@ -113,7 +112,7 @@ export default function CustomerDetailScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors, tr, lang } = useSettings();
+  const { colors, tr } = useSettings();
   const S = makeStyles(colors);
 
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -138,30 +137,13 @@ export default function CustomerDetailScreen() {
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  const handleSendStatement = async () => {
+  const handleViewStatement = () => {
     if (!customer) return;
     if (transactions.length === 0) {
       Alert.alert('', tr.noBalanceDue);
       return;
     }
-    try {
-      // Save statement record
-      const earliestDate = [...transactions].sort((a, b) =>
-        new Date(a.date).getTime() - new Date(b.date).getTime()
-      )[0]?.date ?? new Date().toISOString();
-
-      await insertStatement(
-        db, customerId, transactions.map(t => t.id),
-        balance.totalDebit, balance.totalCredit, balance.balance,
-        earliestDate,
-      );
-      // Send via WhatsApp
-      await sendWhatsAppStatement(
-        customer.phone_number, customer, transactions, balance, lang,
-      );
-    } catch {
-      // Statement saved but WhatsApp might not open — that's OK
-    }
+    router.push({ pathname: '/view-statement' as any, params: { id: String(customer.id) } });
   };
 
   const handleDeleteTransaction = (txn: Transaction) => {
@@ -244,9 +226,9 @@ export default function CustomerDetailScreen() {
           <MaterialIcons name="payments" size={20} color="#FFFFFF" />
           <Text style={S.actionText}>{tr.recordPayment}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[S.actionBtn, S.statementBtn]} onPress={handleSendStatement}>
-          <MaterialIcons name="send" size={20} color="#FFFFFF" />
-          <Text style={S.actionText}>{tr.sendStatement}</Text>
+        <TouchableOpacity style={[S.actionBtn, S.statementBtn]} onPress={handleViewStatement}>
+          <MaterialIcons name="receipt-long" size={20} color="#FFFFFF" />
+          <Text style={S.actionText}>{tr.viewStatement}</Text>
         </TouchableOpacity>
       </View>
 

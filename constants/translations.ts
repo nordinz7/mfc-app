@@ -130,7 +130,9 @@ const en = {
   paidInFull: 'Paid in Full',
   due: 'due',
   // Statement
+  viewStatement: 'View Statement',
   sendStatement: 'Send Statement',
+  shareStatement: 'Share Statement',
   statementTitle: 'MFC — Statement',
   totalOrders: 'Total Orders',
   totalPaid: 'Total Paid',
@@ -140,6 +142,12 @@ const en = {
   // Quantity
   quantity: 'Quantity (kg)',
   quantityPlaceholder: 'e.g. 2.5',
+  // Company
+  companyDetails: 'Company Details',
+  companyName: 'Company Name',
+  companyPlace: 'Company Place',
+  companyNamePlaceholder: 'e.g. MFC FOOD PRODUCT',
+  companyPlacePlaceholder: 'e.g. ADIRAMPATTINAM',
 };
 
 const ta: typeof en = {
@@ -260,7 +268,9 @@ const ta: typeof en = {
   paidInFull: 'முழுமையாக செலுத்தப்பட்டது',
   due: 'நிலுவை',
   // Statement
+  viewStatement: 'அறிக்கை பார்',
   sendStatement: 'அறிக்கை அனுப்பு',
+  shareStatement: 'அறிக்கை பகிர்',
   statementTitle: 'MFC — அறிக்கை',
   totalOrders: 'மொத்த ஆர்டர்கள்',
   totalPaid: 'மொத்தம் செலுத்தியது',
@@ -270,6 +280,12 @@ const ta: typeof en = {
   // Quantity
   quantity: 'அளவு (கிலோ)',
   quantityPlaceholder: 'எ.கா. 2.5',
+  // Company
+  companyDetails: 'நிறுவன விவரங்கள்',
+  companyName: 'நிறுவனத்தின் பெயர்',
+  companyPlace: 'நிறுவன இடம்',
+  companyNamePlaceholder: 'எ.கா. MFC FOOD PRODUCT',
+  companyPlacePlaceholder: 'எ.கா. ADIRAMPATTINAM',
 };
 
 export const translations = { en, ta };

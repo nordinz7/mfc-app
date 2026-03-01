@@ -1,6 +1,8 @@
 import { Lang, translations } from '@/constants/translations';
 import type { OrderWithCustomer, Transaction } from '@/services/database';
 import { format } from 'date-fns';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { Alert, Linking } from 'react-native';
 
 export function formatInvoice(order: OrderWithCustomer, lang: Lang = 'en'): string {
@@ -104,5 +106,46 @@ export async function sendWhatsAppStatement(
     }
   } catch {
     Alert.alert('Error', 'Could not open WhatsApp. Please try again.');
+  }
+}
+
+/**
+ * Share a statement image via the system share sheet (user picks WhatsApp).
+ * @param imageUri - local file URI from ViewShot capture
+ * @param customerName - used for the filename
+ */
+export async function shareStatementImage(
+  imageUri: string,
+  customerName: string,
+  lang: Lang = 'en',
+): Promise<void> {
+  const tr = translations[lang];
+  try {
+    const available = await Sharing.isAvailableAsync();
+    if (!available) {
+      Alert.alert('Error', 'Sharing is not available on this device.');
+      return;
+    }
+
+    // Copy captured image to a nicely-named file
+    const safeName = customerName.replace(/[^a-zA-Z0-9]/g, '_');
+    const dateTag = format(new Date(), 'yyyyMMdd');
+    const fileName = `MFC_Statement_${safeName}_${dateTag}.png`;
+
+    const source = new File(imageUri);
+    const dest = new File(Paths.cache, fileName);
+
+    // Remove destination if it already exists, then copy
+    try { dest.delete(); } catch { /* doesn't exist yet */ }
+    source.copy(dest);
+
+    await Sharing.shareAsync(dest.uri, {
+      mimeType: 'image/png',
+      dialogTitle: tr.shareStatement,
+      UTI: 'public.png',
+    });
+  } catch (error) {
+    console.error('Share statement error:', error);
+    Alert.alert('Error', 'Could not share the statement image. Please try again.');
   }
 }

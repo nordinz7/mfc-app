@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 function makeStyles(c: AppColors) {
   return StyleSheet.create({
@@ -40,12 +40,21 @@ function makeStyles(c: AppColors) {
     },
     appName:    { fontSize: FontSizes.xxl, fontWeight: '800', color: c.text, marginTop: Spacing.md },
     appVersion: { fontSize: FontSizes.sm, color: c.textMuted, marginTop: Spacing.xs },
+    companyInput: {
+      flex: 1,
+      fontSize: FontSizes.md,
+      color: c.text,
+      fontWeight: '600',
+      textAlign: 'right',
+      paddingVertical: 0,
+      minWidth: 140,
+    },
   });
 }
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
-  const { colors, tr, isDark, toggleTheme, lang, setLang } = useSettings();
+  const { colors, tr, isDark, toggleTheme, lang, setLang, companyName, setCompanyName, companyPlace, setCompanyPlace } = useSettings();
   const S = makeStyles(colors);
   const [backupLoading, setBackupLoading] = useState(false);
   const [lastBackup, setLastBackup] = useState<Date | null>(null);
@@ -101,6 +110,35 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Company Details */}
+      <View style={S.section}>
+        <Text style={S.sectionTitle}>{tr.companyDetails}</Text>
+        <View style={S.card}>
+          <View style={S.row}>
+            <MaterialIcons name="business" size={24} color={colors.primary} style={S.rowIcon} />
+            <Text style={S.rowLabel}>{tr.companyName}</Text>
+            <TextInput
+              style={S.companyInput}
+              value={companyName}
+              onChangeText={setCompanyName}
+              placeholder={tr.companyNamePlaceholder}
+              placeholderTextColor={colors.textMuted}
+            />
+          </View>
+          <View style={[S.row, S.rowLast]}>
+            <MaterialIcons name="location-on" size={24} color={colors.primary} style={S.rowIcon} />
+            <Text style={S.rowLabel}>{tr.companyPlace}</Text>
+            <TextInput
+              style={S.companyInput}
+              value={companyPlace}
+              onChangeText={setCompanyPlace}
+              placeholder={tr.companyPlacePlaceholder}
+              placeholderTextColor={colors.textMuted}
+            />
           </View>
         </View>
       </View>

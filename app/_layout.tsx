@@ -40,6 +40,10 @@ function InnerLayout() {
           name="customer-detail"
           options={{ title: tr.customerDetail }}
         />
+        <Stack.Screen
+          name="view-statement"
+          options={{ title: tr.viewStatement }}
+        />
       </Stack>
     </>
   );

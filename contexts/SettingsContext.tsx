@@ -1,10 +1,15 @@
-import React, {
-  createContext, useContext, useState, useEffect, useCallback, ReactNode,
-} from 'react';
+import { AppColors, DarkColors, LightColors } from '@/constants/theme';
+import { Lang, translations } from '@/constants/translations';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {
+    createContext,
+    ReactNode,
+    useCallback,
+    useContext,
+    useEffect,
+    useState,
+} from 'react';
 import { useColorScheme } from 'react-native';
-import { LightColors, DarkColors, AppColors } from '@/constants/theme';
-import { translations, Lang } from '@/constants/translations';
 
 interface SettingsContextValue {
   isDark: boolean;
@@ -13,24 +18,37 @@ interface SettingsContextValue {
   setLang: (l: Lang) => void;
   colors: AppColors;
   tr: typeof translations['en'];
+  companyName: string;
+  setCompanyName: (v: string) => void;
+  companyPlace: string;
+  setCompanyPlace: (v: string) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 const THEME_KEY = '@mfc_theme';
 const LANG_KEY  = '@mfc_lang';
+const COMPANY_NAME_KEY  = '@mfc_company_name';
+const COMPANY_PLACE_KEY = '@mfc_company_place';
+
+const DEFAULT_COMPANY_NAME  = 'MFC FOOD PRODUCT';
+const DEFAULT_COMPANY_PLACE = 'ADIRAMPATTINAM';
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
   const [isDark, setIsDark] = useState(false);
   const [lang, setLangState] = useState<Lang>('en');
+  const [companyName, setCompanyNameState] = useState(DEFAULT_COMPANY_NAME);
+  const [companyPlace, setCompanyPlaceState] = useState(DEFAULT_COMPANY_PLACE);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [storedTheme, storedLang] = await Promise.all([
+      const [storedTheme, storedLang, storedCName, storedCPlace] = await Promise.all([
         AsyncStorage.getItem(THEME_KEY),
         AsyncStorage.getItem(LANG_KEY),
+        AsyncStorage.getItem(COMPANY_NAME_KEY),
+        AsyncStorage.getItem(COMPANY_PLACE_KEY),
       ]);
       if (storedTheme !== null) {
         setIsDark(storedTheme === 'dark');
@@ -40,6 +58,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (storedLang === 'en' || storedLang === 'ta') {
         setLangState(storedLang);
       }
+      if (storedCName !== null) setCompanyNameState(storedCName);
+      if (storedCPlace !== null) setCompanyPlaceState(storedCPlace);
       setReady(true);
     })();
   }, []);
@@ -57,13 +77,23 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     AsyncStorage.setItem(LANG_KEY, l);
   }, []);
 
+  const setCompanyName = useCallback((v: string) => {
+    setCompanyNameState(v);
+    AsyncStorage.setItem(COMPANY_NAME_KEY, v);
+  }, []);
+
+  const setCompanyPlace = useCallback((v: string) => {
+    setCompanyPlaceState(v);
+    AsyncStorage.setItem(COMPANY_PLACE_KEY, v);
+  }, []);
+
   const colors = isDark ? DarkColors : LightColors;
   const tr = translations[lang];
 
   if (!ready) return null;
 
   return (
-    <SettingsContext.Provider value={{ isDark, toggleTheme, lang, setLang, colors, tr }}>
+    <SettingsContext.Provider value={{ isDark, toggleTheme, lang, setLang, colors, tr, companyName, setCompanyName, companyPlace, setCompanyPlace }}>
       {children}
     </SettingsContext.Provider>
   );
