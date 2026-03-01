@@ -1,11 +1,13 @@
+import StatementBill from '@/components/StatementBill';
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { Lang } from '@/constants/translations';
 import { useSettings } from '@/contexts/SettingsContext';
-import { createAndShareBackup } from '@/utils/backup';
+import { TransactionWithQuantity } from '@/services/database';
+import { backupToGoogleDrive, createAndShareBackup, getLastBackupDate, isBackupOverdue, pickAndRestoreBackup } from '@/utils/backup';
 import { MaterialIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 function makeStyles(c: AppColors) {
@@ -31,25 +33,6 @@ function makeStyles(c: AppColors) {
     langBtnActive: { backgroundColor: c.primary },
     langBtnText:   { fontSize: FontSizes.md, color: c.textSecondary, fontWeight: '600' },
     langBtnTextActive: { color: '#FFFFFF' },
-    backupRow:  { flexDirection: 'row', alignItems: 'center', flex: 1, gap: Spacing.sm },
-    backupText: { flex: 1, fontSize: FontSizes.lg, color: c.primary, fontWeight: '700' },
-    backupSub:  { fontSize: FontSizes.sm, color: c.textMuted },
-    appInfoCard: {
-      margin: Spacing.lg, backgroundColor: c.card,
-      borderRadius: Radius.lg, padding: Spacing.xl, alignItems: 'center',
-    },
-    appIcon:    { width: 64, height: 64, borderRadius: 16 },
-    appName:    { fontSize: FontSizes.xxl, fontWeight: '800', color: c.text, marginTop: Spacing.md },
-    appVersion: { fontSize: FontSizes.sm, color: c.textMuted, marginTop: Spacing.xs },
-    companyInput: {
-      flex: 1,
-      fontSize: FontSizes.md,
-      color: c.text,
-      fontWeight: '600',
-      textAlign: 'right',
-      paddingVertical: 0,
-      minWidth: 140,
-    },
     companyInputFull: {
       flex: 1,
       fontSize: FontSizes.lg,
@@ -57,27 +40,131 @@ function makeStyles(c: AppColors) {
       fontWeight: '600',
       paddingVertical: 0,
     },
+    // Backup section
+    backupBtnRow: {
+      flexDirection: 'row', gap: Spacing.sm,
+      paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md,
+    },
+    backupBtn: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      gap: Spacing.xs, backgroundColor: '#1A73E8',
+      paddingVertical: Spacing.md, borderRadius: Radius.md,
+    },
+    backupBtnText: { color: '#FFFFFF', fontSize: FontSizes.sm, fontWeight: '700' },
+    restoreBtn: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+      gap: Spacing.xs, backgroundColor: c.filterInactive,
+      paddingVertical: Spacing.md, borderRadius: Radius.md,
+    },
+    restoreBtnText: { fontSize: FontSizes.sm, fontWeight: '700', color: c.text },
+    backupMeta: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md,
+    },
+    backupMetaText: { fontSize: FontSizes.xs, color: c.textMuted },
+    overdueTag: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      backgroundColor: '#FFF3CD', paddingHorizontal: Spacing.sm, paddingVertical: 2,
+      borderRadius: Radius.sm,
+    },
+    overdueTagText: { fontSize: FontSizes.xs, color: '#856404', fontWeight: '700' },
+    // Sample statement
+    sampleDesc: { fontSize: FontSizes.sm, color: c.textSecondary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm },
+    sampleWrap: { alignItems: 'center', paddingHorizontal: Spacing.md, paddingBottom: Spacing.lg },
+    // App info
+    appInfoCard: {
+      margin: Spacing.lg, backgroundColor: c.card,
+      borderRadius: Radius.lg, padding: Spacing.xl, alignItems: 'center',
+    },
+    appIcon:    { width: 64, height: 64, borderRadius: 16 },
+    appName:    { fontSize: FontSizes.xxl, fontWeight: '800', color: c.text, marginTop: Spacing.md },
+    appVersion: { fontSize: FontSizes.sm, color: c.textMuted, marginTop: Spacing.xs },
   });
+}
+
+// Sample data for the statement preview
+function getSampleTransactions(): TransactionWithQuantity[] {
+  const today = new Date();
+  return [
+    { id: 1, customer_id: 1, order_id: 1, type: 'debit', amount: 500, description: 'Chicken Biriyani', quantity: 2, date: subDays(today, 5).toISOString(), created_date: '', updated_at: '' },
+    { id: 2, customer_id: 1, order_id: 2, type: 'debit', amount: 300, description: 'Mutton Curry', quantity: 1, date: subDays(today, 3).toISOString(), created_date: '', updated_at: '' },
+    { id: 3, customer_id: 1, order_id: null, type: 'credit', amount: 400, description: 'Cash Payment', quantity: 0, date: subDays(today, 1).toISOString(), created_date: '', updated_at: '' },
+  ];
 }
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const { colors, tr, isDark, toggleTheme, lang, setLang, companyName, setCompanyName, companyPlace, setCompanyPlace } = useSettings();
   const S = makeStyles(colors);
-  const [backupLoading, setBackupLoading] = useState(false);
-  const [lastBackup, setLastBackup] = useState<Date | null>(null);
 
-  const handleBackup = async () => {
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [lastBackup, setLastBackup] = useState<Date | null>(null);
+  const [overdue, setOverdue] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const date = await getLastBackupDate();
+      setLastBackup(date);
+      setOverdue(await isBackupOverdue());
+    })();
+  }, []);
+
+  const refreshBackupState = async () => {
+    const date = await getLastBackupDate();
+    setLastBackup(date);
+    setOverdue(await isBackupOverdue());
+  };
+
+  const handleGoogleDrive = async () => {
     setBackupLoading(true);
     try {
-      await createAndShareBackup(db);
-      setLastBackup(new Date());
+      await backupToGoogleDrive(db);
+      await refreshBackupState();
     } catch {
       Alert.alert(tr.backupFailed, tr.backupFailedMsg);
     } finally {
       setBackupLoading(false);
     }
   };
+
+  const handleShareBackup = async () => {
+    setBackupLoading(true);
+    try {
+      await createAndShareBackup(db);
+      await refreshBackupState();
+    } catch {
+      Alert.alert(tr.backupFailed, tr.backupFailedMsg);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleRestore = () => {
+    Alert.alert(tr.restoreConfirm, tr.restoreConfirmMsg, [
+      { text: tr.cancel, style: 'cancel' },
+      {
+        text: tr.proceed,
+        style: 'destructive',
+        onPress: async () => {
+          setRestoring(true);
+          try {
+            const result = await pickAndRestoreBackup(db);
+            if (result) {
+              Alert.alert(tr.restoreSuccess, tr.restoreSuccessMsg(result.customers, result.orders));
+            }
+          } catch {
+            Alert.alert(tr.restoreFailed, tr.restoreFailedMsg);
+          } finally {
+            setRestoring(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const busy = backupLoading || restoring;
+  const sampleTxns = getSampleTransactions();
 
   return (
     <ScrollView style={S.container} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -148,25 +235,77 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Backup */}
+      {/* Sample Statement Preview */}
+      <View style={S.section}>
+        <Text style={S.sectionTitle}>{tr.sampleStatement}</Text>
+        <View style={S.card}>
+          <Text style={S.sampleDesc}>{tr.sampleStatementDesc}</Text>
+          <View style={S.sampleWrap}>
+            <StatementBill
+              companyName={companyName}
+              companyPlace={companyPlace}
+              customerName="Rahul Kumar"
+              customerPlace="Chennai"
+              date={format(new Date(), 'dd/MM/yyyy')}
+              transactions={sampleTxns}
+              totalOrders={800}
+              totalPaid={400}
+              balance={400}
+              lang={lang}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Backup & Restore */}
       <View style={S.section}>
         <Text style={S.sectionTitle}>{tr.backup}</Text>
         <View style={S.card}>
-          <TouchableOpacity style={[S.row, S.rowLast]} onPress={handleBackup} disabled={backupLoading}>
-            <MaterialIcons name="cloud-upload" size={24} color={colors.primary} style={S.rowIcon} />
-            <View style={S.backupRow}>
+          <View style={S.backupBtnRow}>
+            <TouchableOpacity style={S.backupBtn} onPress={handleGoogleDrive} disabled={busy}>
               {backupLoading
-                ? <ActivityIndicator color={colors.primary} size="small" />
+                ? <ActivityIndicator color="#FFFFFF" size="small" />
                 : (
                   <>
-                    <Text style={S.backupText}>{tr.createBackup}</Text>
-                    {lastBackup && <Text style={S.backupSub}>{format(lastBackup, 'dd MMM, hh:mm a')}</Text>}
+                    <MaterialIcons name="cloud-upload" size={18} color="#FFFFFF" />
+                    <Text style={S.backupBtnText}>{tr.saveToGoogleDrive}</Text>
                   </>
                 )
               }
-            </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={S.restoreBtn} onPress={handleRestore} disabled={busy}>
+              {restoring
+                ? <ActivityIndicator color={colors.text} size="small" />
+                : (
+                  <>
+                    <MaterialIcons name="restore" size={18} color={colors.text} />
+                    <Text style={S.restoreBtnText}>{tr.restoreButton}</Text>
+                  </>
+                )
+              }
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={[S.row, S.rowLast]}
+            onPress={handleShareBackup}
+            disabled={busy}
+          >
+            <MaterialIcons name="share" size={20} color={colors.primary} style={S.rowIcon} />
+            <Text style={[S.rowLabel, { color: colors.primary }]}>{tr.shareBackup}</Text>
             <MaterialIcons name="chevron-right" size={22} color={colors.textMuted} />
           </TouchableOpacity>
+          <View style={S.backupMeta}>
+            {lastBackup
+              ? <Text style={S.backupMetaText}>{tr.lastBackup}: {format(lastBackup, 'dd MMM yyyy, hh:mm a')}</Text>
+              : <Text style={S.backupMetaText}>{tr.neverBackedUp}</Text>
+            }
+            {overdue && (
+              <View style={S.overdueTag}>
+                <MaterialIcons name="warning" size={12} color="#856404" />
+                <Text style={S.overdueTagText}>{tr.backupOverdue}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
 

@@ -154,6 +154,8 @@ const en = {
   statementBalance: 'Balance Due',
   statementThanks: 'Thank you! 🙏',
   noBalanceDue: 'No balance due for this customer.',
+  sampleStatement: 'Sample Statement',
+  sampleStatementDesc: 'Preview how your statement/bill looks to customers.',
   // Quantity
   orderDate: 'Order Date',
   quantity: 'Quantity (kg)',
@@ -330,6 +332,8 @@ const ta: typeof en = {
   statementBalance: 'நிலுவை தொகை',
   statementThanks: 'நன்றி! 🙏',
   noBalanceDue: 'இந்த வாடிக்கையாளருக்கு நிலுவை இல்லை.',
+  sampleStatement: 'மாதிரி அறிக்கை',
+  sampleStatementDesc: 'வாடிக்கையாளர்களுக்கு அறிக்கை/பில் எப்படி தெரியும் என்பதைப் பாருங்கள்.',
   // Quantity
   orderDate: 'ஆர்டர் தேதி',
   quantity: 'அளவு (கிலோ)',
