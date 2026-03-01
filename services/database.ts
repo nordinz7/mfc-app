@@ -439,6 +439,34 @@ export async function addOrder(
   return orderId;
 }
 
+export async function updateOrder(
+  db: SQLite.SQLiteDatabase,
+  orderId: number,
+  amount: number,
+  description: string,
+  quantity: number = 0,
+  date?: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    const updates = [
+      `UPDATE orders SET amount = ?, description = ?, quantity = ?, updated_at = ?${date ? ', date = ?' : ''} WHERE id = ?`,
+    ];
+    const params = date
+      ? [amount, description.trim(), quantity, now, date, orderId]
+      : [amount, description.trim(), quantity, now, orderId];
+    await db.runAsync(updates[0], params);
+    // Also update the linked debit transaction
+    const txnParams = date
+      ? [amount, description.trim(), now, date, orderId]
+      : [amount, description.trim(), now, orderId];
+    await db.runAsync(
+      `UPDATE transactions SET amount = ?, description = ?, updated_at = ?${date ? ', date = ?' : ''} WHERE order_id = ? AND type = 'debit'`,
+      txnParams
+    );
+  });
+}
+
 export async function deleteOrder(
   db: SQLite.SQLiteDatabase,
   id: number,

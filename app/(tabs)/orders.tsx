@@ -22,6 +22,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -45,7 +46,7 @@ function makeStyles(c: AppColors) {
       borderBottomColor: c.border,
       gap: Spacing.sm,
     },
-    filterRow:    { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
+    filterRow:    { flexDirection: 'row', gap: Spacing.sm },
     chip: {
       paddingHorizontal: Spacing.lg,
       paddingVertical: 6,
@@ -93,6 +94,7 @@ function makeStyles(c: AppColors) {
       borderRadius: Radius.sm, flex: 1, justifyContent: 'center',
     },
     waBtnText:    { color: '#FFFFFF', fontSize: FontSizes.sm, fontWeight: '700' },
+    editBtn:      { padding: 6 },
     deleteBtn:    { padding: 6 },
     emptyWrap:    { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
     emptyText:    { fontSize: FontSizes.xl, fontWeight: '600', color: c.textSecondary, marginTop: Spacing.lg },
@@ -302,6 +304,9 @@ export default function OrdersScreen() {
           <MaterialCommunityIcons name="whatsapp" size={16} color="#FFFFFF" />
           <Text style={S.waBtnText}>{tr.sendInvoice}</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push({ pathname: '/edit-order', params: { orderId: item.id, customerName: `${item.customer_name} — ${item.customer_place}`, amount: String(item.amount), description: item.description, quantity: String(item.quantity), date: item.date } })} style={S.editBtn}>
+          <MaterialIcons name="edit" size={22} color={colors.primary} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => handleDelete(item)} style={S.deleteBtn}>
           <MaterialIcons name="delete-outline" size={22} color={colors.danger} />
         </TouchableOpacity>
@@ -351,7 +356,7 @@ export default function OrdersScreen() {
   return (
     <View style={S.container}>
       <View style={S.topBar}>
-        <View style={S.filterRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.filterRow}>
           {/* Tomorrow chip */}
           <TouchableOpacity
             style={[S.chip, filter === 'tomorrow' && S.chipActive]}
@@ -419,7 +424,7 @@ export default function OrdersScreen() {
               color={filter === 'customer' ? '#FFFFFF' : colors.textSecondary}
             />
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
 
       {displayed.length > 0 && (

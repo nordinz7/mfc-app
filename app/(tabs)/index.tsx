@@ -7,17 +7,17 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Linking,
-  Modal,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Linking,
+    Modal,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 function makeStyles(c: AppColors) {
@@ -44,6 +44,13 @@ function makeStyles(c: AppColors) {
     },
     listContent: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 100 },
     emptyOuter:  { flexGrow: 1 },
+    summaryBar: {
+      flexDirection: 'row', justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg, paddingVertical: 6,
+      backgroundColor: c.primaryLight,
+    },
+    summaryText: { fontSize: FontSizes.sm, color: c.primary, fontWeight: '600' },
+    summaryOverdue: { fontSize: FontSizes.sm, color: c.danger, fontWeight: '700' },
     card: {
       backgroundColor: c.card,
       borderRadius: Radius.md,
@@ -215,6 +222,9 @@ export default function CustomersScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+
+  const overdueCount = useMemo(() => customers.filter(c => c.balance > 0).length, [customers]);
+  const overdueAmount = useMemo(() => customers.reduce((sum, c) => c.balance > 0 ? sum + c.balance : sum, 0), [customers]);
 
   const displayed = useMemo(() => {
     if (!search.trim()) return customers;
@@ -481,6 +491,15 @@ export default function CustomersScreen() {
             placeholderTextColor={colors.textMuted}
             clearButtonMode="while-editing"
           />
+        </View>
+      )}
+
+      {!selectionMode && customers.length > 0 && (
+        <View style={S.summaryBar}>
+          <Text style={S.summaryText}>{tr.totalCustomers(customers.length)}</Text>
+          {overdueCount > 0 && (
+            <Text style={S.summaryOverdue}>{tr.totalOverdue(overdueCount)} · {tr.totalOverdueAmount(overdueAmount)}</Text>
+          )}
         </View>
       )}
 

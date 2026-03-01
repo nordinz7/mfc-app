@@ -33,6 +33,10 @@ function InnerLayout() {
           options={{ title: tr.newOrder, presentation: 'modal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen
+          name="edit-order"
+          options={{ title: tr.editOrder, presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
           name="add-payment"
           options={{ title: tr.addPayment, presentation: 'modal', animation: 'slide_from_bottom' }}
         />
