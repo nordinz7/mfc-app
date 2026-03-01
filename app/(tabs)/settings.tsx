@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 function makeStyles(c: AppColors) {
   return StyleSheet.create({
@@ -38,6 +38,7 @@ function makeStyles(c: AppColors) {
       margin: Spacing.lg, backgroundColor: c.card,
       borderRadius: Radius.lg, padding: Spacing.xl, alignItems: 'center',
     },
+    appIcon:    { width: 64, height: 64, borderRadius: 16 },
     appName:    { fontSize: FontSizes.xxl, fontWeight: '800', color: c.text, marginTop: Spacing.md },
     appVersion: { fontSize: FontSizes.sm, color: c.textMuted, marginTop: Spacing.xs },
     companyInput: {
@@ -103,7 +104,6 @@ export default function SettingsScreen() {
         <View style={S.card}>
           <View style={[S.row, S.rowLast]}>
             <MaterialIcons name="language" size={24} color={colors.primary} style={S.rowIcon} />
-            <Text style={S.rowLabel}>{tr.language}</Text>
             <View style={S.langBtnRow}>
               {(['en', 'ta'] as Lang[]).map(l => (
                 <TouchableOpacity
@@ -112,7 +112,7 @@ export default function SettingsScreen() {
                   onPress={() => setLang(l)}
                 >
                   <Text style={[S.langBtnText, lang === l && S.langBtnTextActive]}>
-                    {l === 'en' ? tr.english : tr.tamil}
+                    {l === 'en' ? '🇬🇧 ' + tr.english : '🇮🇳 ' + tr.tamil}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -172,7 +172,7 @@ export default function SettingsScreen() {
 
       {/* App info */}
       <View style={S.appInfoCard}>
-        <MaterialIcons name="storefront" size={48} color={colors.primary} />
+        <Image source={require('@/assets/images/icon.png')} style={S.appIcon} />
         <Text style={S.appName}>MFC App</Text>
         <Text style={S.appVersion}>v2.0.0 • Local Storage</Text>
       </View>
