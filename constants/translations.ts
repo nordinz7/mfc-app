@@ -166,6 +166,20 @@ const en = {
   importNone: 'No new contacts to import. All phone numbers already exist.',
   contactsPermission: 'Contacts Permission',
   contactsPermissionMsg: 'Please allow access to your contacts to import them.',
+  // Contact picker
+  selectContacts: 'Select Contacts',
+  searchContacts: 'Search contacts...',
+  importSelected: 'Import Selected',
+  selectedCount: (count: number) => `${count} selected`,
+  selectAll: 'Select All',
+  deselectAll: 'Deselect All',
+  loadingContacts: 'Loading contacts...',
+  noContactsFound: 'No contacts found.',
+  // Bulk delete
+  bulkDelete: 'Delete Selected',
+  bulkDeleteConfirm: 'Delete Customers',
+  bulkDeleteMsg: (count: number) => `Delete ${count} selected customer${count === 1 ? '' : 's'}? This cannot be undone.`,
+  bulkDeleteSkipped: (deleted: number, skipped: number) => `Deleted ${deleted} customer${deleted === 1 ? '' : 's'}. ${skipped} customer${skipped === 1 ? '' : 's'} with orders could not be deleted.`,
 };
 
 const ta: typeof en = {
@@ -322,6 +336,20 @@ const ta: typeof en = {
   importNone: 'புதிய தொடர்புகள் இல்லை. அனைத்து தொலைபேசி எண்களும் ஏற்கனவே உள்ளன.',
   contactsPermission: 'தொடர்பு அனுமதி',
   contactsPermissionMsg: 'தொடர்புகளை இறக்குமதி செய்ய அனுமதி வழங்கவும்.',
+  // Contact picker
+  selectContacts: 'தொடர்புகளைத் தேர்வு செய்',
+  searchContacts: 'தொடர்புகளைத் தேடு...',
+  importSelected: 'தேர்ந்தவற்றை இறக்குமதி செய்',
+  selectedCount: (count: number) => `${count} தேர்ந்தெடுக்கப்பட்டது`,
+  selectAll: 'அனைத்தையும் தேர்வு',
+  deselectAll: 'தேர்வை நீக்கு',
+  loadingContacts: 'தொடர்புகளை ஏற்றுகிறது...',
+  noContactsFound: 'தொடர்புகள் இல்லை.',
+  // Bulk delete
+  bulkDelete: 'தேர்ந்தவற்றை நீக்கு',
+  bulkDeleteConfirm: 'வாடிக்கையாளர்களை நீக்கு',
+  bulkDeleteMsg: (count: number) => `${count} தேர்ந்தெடுக்கப்பட்ட வாடிக்கையாளர்களை நீக்கவா? இதை மீட்க முடியாது.`,
+  bulkDeleteSkipped: (deleted: number, skipped: number) => `${deleted} வாடிக்கையாளர்கள் நீக்கப்பட்டனர். ${skipped} ஆர்டர்கள் உள்ள வாடிக்கையாளர்களை நீக்க முடியவில்லை.`,
 };
 
 export const translations = { en, ta };

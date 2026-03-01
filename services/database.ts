@@ -288,6 +288,31 @@ export async function deleteCustomer(
   });
 }
 
+/** Bulk delete customers, skipping those with orders. Returns { deleted, skipped }. */
+export async function bulkDeleteCustomers(
+  db: SQLite.SQLiteDatabase,
+  ids: number[],
+): Promise<{ deleted: number; skipped: number }> {
+  let deleted = 0;
+  let skipped = 0;
+  await db.withTransactionAsync(async () => {
+    for (const id of ids) {
+      const row = await db.getFirstAsync<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM orders WHERE customer_id = ?`,
+        [id]
+      );
+      if ((row?.cnt ?? 0) > 0) {
+        skipped++;
+        continue;
+      }
+      await db.runAsync(`DELETE FROM transactions WHERE customer_id = ?`, [id]);
+      await db.runAsync(`DELETE FROM customers WHERE id = ?`, [id]);
+      deleted++;
+    }
+  });
+  return { deleted, skipped };
+}
+
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 const ORDER_SELECT = `
