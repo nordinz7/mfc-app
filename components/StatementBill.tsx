@@ -30,6 +30,8 @@ const LABELS = {
     totalOrders: 'Total Orders',
     totalPaid: 'Total Paid',
     balanceDue: 'Balance Due',
+    balanceCredit: 'Advance Credit',
+    allSettled: 'All Settled',
     thankYou: 'THANK YOU!',
     eoe: 'E. & O.E.',
     order: 'Order',
@@ -48,6 +50,8 @@ const LABELS = {
     totalOrders: 'மொத்த ஆர்டர்கள்',
     totalPaid: 'மொத்தம் செலுத்தியது',
     balanceDue: 'நிலுவை தொகை',
+    balanceCredit: 'முன்பணம்',
+    allSettled: 'தீர்வு ஆனது',
     thankYou: 'நன்றி!',
     eoe: 'E. & O.E.',
     order: 'ஆர்டர்',
@@ -159,13 +163,15 @@ const StatementBill = forwardRef<View, StatementBillProps>(
           </View>
           <View style={S.summaryRow}>
             <Text style={S.summaryLabel}>{L.totalPaid}</Text>
-            <Text style={[S.summaryValue, { color: '#B71C1C' }]}>
+            <Text style={[S.summaryValue, { color: '#1B5E20' }]}>
               ₹{Math.round(totalPaid)}
             </Text>
           </View>
           <View style={S.divider} />
           <View style={S.summaryRow}>
-            <Text style={S.balanceLabel}>{L.balanceDue}</Text>
+            <Text style={S.balanceLabel}>
+              {balance > 0 ? L.balanceDue : balance < 0 ? L.balanceCredit : L.allSettled}
+            </Text>
             <Text
               style={[
                 S.balanceValue,
