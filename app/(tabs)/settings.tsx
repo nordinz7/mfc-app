@@ -1,7 +1,7 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { Lang } from '@/constants/translations';
 import { useSettings } from '@/contexts/SettingsContext';
-import { backupToGoogleDrive, createAndShareBackup, getLastBackupDate, isBackupOverdue, pickAndRestoreBackup } from '@/utils/backup';
+import { backupToGoogleDrive, createAndShareBackup, getLastLocalBackupDate, pickAndRestoreBackup } from '@/utils/backup';
 import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
@@ -41,33 +41,13 @@ function makeStyles(c: AppColors) {
       paddingVertical: 0,
     },
     // Backup section
-    backupBtnRow: {
-      flexDirection: 'row', gap: Spacing.sm,
-      paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md,
-    },
-    backupBtn: {
-      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-      gap: Spacing.xs, backgroundColor: '#1A73E8',
-      paddingVertical: Spacing.md, borderRadius: Radius.md,
-    },
-    backupBtnText: { color: '#FFFFFF', fontSize: FontSizes.sm, fontWeight: '700' },
-    restoreBtn: {
-      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-      gap: Spacing.xs, backgroundColor: c.filterInactive,
-      paddingVertical: Spacing.md, borderRadius: Radius.md,
-    },
-    restoreBtnText: { fontSize: FontSizes.sm, fontWeight: '700', color: c.text },
-    backupMeta: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md,
-    },
-    backupMetaText: { fontSize: FontSizes.xs, color: c.textMuted },
+    backupMetaText: { fontSize: FontSizes.xs, color: c.textMuted, marginTop: 2 },
     overdueTag: {
       flexDirection: 'row', alignItems: 'center', gap: 4,
-      backgroundColor: '#FFF3CD', paddingHorizontal: Spacing.sm, paddingVertical: 2,
+      paddingHorizontal: Spacing.sm, paddingVertical: 2,
       borderRadius: Radius.sm,
     },
-    overdueTagText: { fontSize: FontSizes.xs, color: '#856404', fontWeight: '700' },
+    overdueTagText: { fontSize: FontSizes.xs, fontWeight: '700' },
     // Sample statement
     sampleDesc: { fontSize: FontSizes.sm, color: c.textSecondary, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm },
     // App info
@@ -89,27 +69,23 @@ export default function SettingsScreen() {
 
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
-  const [lastBackup, setLastBackup] = useState<Date | null>(null);
-  const [overdue, setOverdue] = useState(false);
+  const [lastLocalBackup, setLastLocalBackup] = useState<Date | null>(null);
   const [devMode, setDevMode] = useState(false);
   const [devTapCount, setDevTapCount] = useState(0);
 
   useEffect(() => {
     AsyncStorage.getItem('@mfc_dev_mode').then(v => { if (v === 'true') setDevMode(true); });
+    getLastLocalBackupDate().then(setLastLocalBackup);
   }, []);
 
   useEffect(() => {
     (async () => {
-      const date = await getLastBackupDate();
-      setLastBackup(date);
-      setOverdue(await isBackupOverdue());
+      setLastLocalBackup(await getLastLocalBackupDate());
     })();
   }, []);
 
   const refreshBackupState = async () => {
-    const date = await getLastBackupDate();
-    setLastBackup(date);
-    setOverdue(await isBackupOverdue());
+    setLastLocalBackup(await getLastLocalBackupDate());
   };
 
   const handleGoogleDrive = async () => {
@@ -271,51 +247,44 @@ export default function SettingsScreen() {
       <View style={S.section}>
         <Text style={S.sectionTitle}>{tr.backup}</Text>
         <View style={S.card}>
-          <View style={S.backupBtnRow}>
-            <TouchableOpacity style={S.backupBtn} onPress={handleGoogleDrive} disabled={busy}>
-              {backupLoading
-                ? <ActivityIndicator color="#FFFFFF" size="small" />
-                : (
-                  <>
-                    <MaterialIcons name="cloud-upload" size={18} color="#FFFFFF" />
-                    <Text style={S.backupBtnText}>{tr.saveToGoogleDrive}</Text>
-                  </>
-                )
-              }
-            </TouchableOpacity>
-            <TouchableOpacity style={S.restoreBtn} onPress={handleRestore} disabled={busy}>
-              {restoring
-                ? <ActivityIndicator color={colors.text} size="small" />
-                : (
-                  <>
-                    <MaterialIcons name="restore" size={18} color={colors.text} />
-                    <Text style={S.restoreBtnText}>{tr.restoreButton}</Text>
-                  </>
-                )
-              }
-            </TouchableOpacity>
+          {/* Auto-backup status */}
+          <View style={S.row}>
+            <MaterialIcons name="autorenew" size={24} color={colors.success} style={S.rowIcon} />
+            <View style={{ flex: 1 }}>
+              <Text style={S.rowLabel}>{tr.autoBackup}</Text>
+              {lastLocalBackup && (
+                <Text style={S.backupMetaText}>{tr.lastSaved}: {format(lastLocalBackup, 'dd MMM yyyy, hh:mm a')}</Text>
+              )}
+            </View>
+            <View style={[S.overdueTag, { backgroundColor: colors.successLight }]}>
+              <MaterialIcons name="check-circle" size={12} color={colors.success} />
+              <Text style={[S.overdueTagText, { color: colors.success }]}>{tr.autoBackupActive}</Text>
+            </View>
           </View>
-          <TouchableOpacity
-            style={[S.row, S.rowLast]}
-            onPress={handleShareBackup}
-            disabled={busy}
-          >
-            <MaterialIcons name="share" size={20} color={colors.primary} style={S.rowIcon} />
-            <Text style={[S.rowLabel, { color: colors.primary }]}>{tr.shareBackup}</Text>
+          {/* Google Drive */}
+          <TouchableOpacity style={S.row} onPress={handleGoogleDrive} disabled={busy}>
+            <MaterialIcons name="add-to-drive" size={24} color="#1A73E8" style={S.rowIcon} />
+            <Text style={S.rowLabel}>{tr.saveToGoogleDrive}</Text>
+            {backupLoading
+              ? <ActivityIndicator color={colors.primary} size="small" />
+              : <MaterialIcons name="chevron-right" size={22} color={colors.textMuted} />
+            }
+          </TouchableOpacity>
+          {/* Share */}
+          <TouchableOpacity style={S.row} onPress={handleShareBackup} disabled={busy}>
+            <MaterialIcons name="share" size={24} color={colors.primary} style={S.rowIcon} />
+            <Text style={S.rowLabel}>{tr.shareBackup}</Text>
             <MaterialIcons name="chevron-right" size={22} color={colors.textMuted} />
           </TouchableOpacity>
-          <View style={S.backupMeta}>
-            {lastBackup
-              ? <Text style={S.backupMetaText}>{tr.lastBackup}: {format(lastBackup, 'dd MMM yyyy, hh:mm a')}</Text>
-              : <Text style={S.backupMetaText}>{tr.neverBackedUp}</Text>
+          {/* Restore */}
+          <TouchableOpacity style={[S.row, S.rowLast]} onPress={handleRestore} disabled={busy}>
+            <MaterialIcons name="restore" size={24} color={colors.textSecondary} style={S.rowIcon} />
+            <Text style={S.rowLabel}>{tr.restoreButton}</Text>
+            {restoring
+              ? <ActivityIndicator color={colors.primary} size="small" />
+              : <MaterialIcons name="chevron-right" size={22} color={colors.textMuted} />
             }
-            {overdue && (
-              <View style={S.overdueTag}>
-                <MaterialIcons name="warning" size={12} color="#856404" />
-                <Text style={S.overdueTagText}>{tr.backupOverdue}</Text>
-              </View>
-            )}
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 

@@ -8,6 +8,8 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { Alert } from 'react-native';
 
 const LAST_BACKUP_KEY = '@mfc_last_backup';
+const LAST_LOCAL_BACKUP_KEY = '@mfc_last_local_backup';
+const LOCAL_BACKUP_FILENAME = 'mfc-auto-backup.json';
 
 // ─── Persistence helpers ──────────────────────────────────────────────────────
 
@@ -27,6 +29,47 @@ export async function isBackupOverdue(): Promise<boolean> {
   const last = await getLastBackupDate();
   if (!last) return true;
   return differenceInDays(new Date(), last) >= 7;
+}
+
+// ─── Auto local backup ────────────────────────────────────────────────────────
+
+/** Save a JSON backup to the persistent documents directory. */
+export async function saveLocalBackup(db: SQLiteDatabase): Promise<void> {
+  try {
+    const data = await getAllDataForBackup(db);
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      version: 2,
+      customers: data.customers,
+      orders: data.orders,
+      transactions: data.transactions,
+      statements: data.statements,
+      statement_transactions: data.statement_transactions,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const file = new File(Paths.document, LOCAL_BACKUP_FILENAME);
+    file.write(json);
+    await AsyncStorage.setItem(LAST_LOCAL_BACKUP_KEY, new Date().toISOString());
+  } catch (e) {
+    console.warn('Auto local backup failed:', e);
+  }
+}
+
+/** Read the last auto-backup date. */
+export async function getLastLocalBackupDate(): Promise<Date | null> {
+  const raw = await AsyncStorage.getItem(LAST_LOCAL_BACKUP_KEY);
+  return raw ? new Date(raw) : null;
+}
+
+/** Get the URI of the local auto-backup file (or null if it doesn't exist). */
+export function getLocalBackupUri(): string | null {
+  try {
+    const file = new File(Paths.document, LOCAL_BACKUP_FILENAME);
+    if (file.exists) return file.uri;
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Backup file creation ─────────────────────────────────────────────────────
@@ -97,9 +140,16 @@ export async function createAndShareBackup(db: SQLiteDatabase): Promise<void> {
  * user to choose Google Drive.  This is the most reliable cross-device
  * approach without requiring Google OAuth.
  */
+/**
+ * Creates a JSON backup and opens the share sheet with a Google Drive prompt.
+ * Uses the latest auto-saved local file if available, otherwise creates a new one.
+ */
 export async function backupToGoogleDrive(db: SQLiteDatabase): Promise<void> {
   try {
-    const { uri } = await createBackupFile(db);
+    // Ensure local backup is fresh
+    await saveLocalBackup(db);
+    const localUri = getLocalBackupUri();
+    const uri = localUri ?? (await createBackupFile(db)).uri;
     if (!(await ensureSharingAvailable())) return;
 
     await Sharing.shareAsync(uri, {

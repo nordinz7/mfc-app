@@ -1,13 +1,30 @@
 import { SettingsProvider, useSettings } from '@/contexts/SettingsContext';
 import { initDatabase } from '@/services/database';
+import { saveLocalBackup } from '@/utils/backup';
 import { Stack } from 'expo-router';
-import { SQLiteProvider } from 'expo-sqlite';
+import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
-import { Suspense } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { Suspense, useEffect, useRef } from 'react';
+import { ActivityIndicator, AppState, AppStateStatus, View } from 'react-native';
 
 function InnerLayout() {
   const { colors, tr } = useSettings();
+  const db = useSQLiteContext();
+  const appState = useRef(AppState.currentState);
+
+  // Auto-save local backup when app goes to background
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (appState.current === 'active' && (next === 'inactive' || next === 'background')) {
+        saveLocalBackup(db);
+      }
+      appState.current = next;
+    });
+    // Also save once on mount
+    saveLocalBackup(db);
+    return () => sub.remove();
+  }, [db]);
+
   return (
     <>
       <StatusBar style={colors.statusBar} backgroundColor={colors.headerBg} />
