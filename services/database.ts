@@ -9,7 +9,6 @@ export interface Customer {
   phone_number: string;
   created_date: string;
   updated_at: string;
-  status: 'active' | 'deleted';
 }
 
 export interface Order {
@@ -21,7 +20,6 @@ export interface Order {
   transaction_id: number | null;
   date: string;
   updated_at: string;
-  status: 'active' | 'deleted';
 }
 
 export interface OrderWithCustomer extends Order {
@@ -38,7 +36,6 @@ export interface Transaction {
   amount: number;
   description: string;
   date: string;
-  status: 'active' | 'deleted';
   created_date: string;
   updated_at: string;
 }
@@ -56,7 +53,6 @@ export interface Statement {
   total_credit: number;
   balance: number;
   sent_via: string;
-  status: 'active' | 'deleted';
   created_date: string;
   updated_at: string;
 }
@@ -157,24 +153,33 @@ export async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
   // Retroactively create debit transactions for orders that don't have one
   try {
     const orphanOrders = await db.getAllAsync<{ id: number; customer_id: number; amount: number; description: string; date: string }>(
-      `SELECT id, customer_id, amount, description, date FROM orders WHERE transaction_id IS NULL AND status = 'active'`
+      `SELECT id, customer_id, amount, description, date FROM orders WHERE transaction_id IS NULL`
     );
     for (const o of orphanOrders) {
       const txn = await db.runAsync(
-        `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, status, created_date, updated_at)
-         VALUES (?, ?, 'debit', ?, ?, ?, 'active', ?, ?)`,
+        `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
+         VALUES (?, ?, 'debit', ?, ?, ?, ?, ?)`,
         [o.customer_id, o.id, o.amount, o.description, o.date, o.date, o.date]
       );
       await db.runAsync(`UPDATE orders SET transaction_id = ? WHERE id = ?`, [txn.lastInsertRowId, o.id]);
     }
   } catch { /* migration already done or no orphan orders */ }
+
+  // Clean up previously soft-deleted rows (migration from status-based to hard-delete)
+  try {
+    await db.execAsync(`DELETE FROM statement_transactions WHERE statement_id IN (SELECT id FROM statements WHERE status = 'deleted')`);
+    await db.execAsync(`DELETE FROM statements WHERE status = 'deleted'`);
+    await db.execAsync(`DELETE FROM transactions WHERE status = 'deleted'`);
+    await db.execAsync(`DELETE FROM orders WHERE status = 'deleted'`);
+    await db.execAsync(`DELETE FROM customers WHERE status = 'deleted'`);
+  } catch { /* status column may not exist or already cleaned */ }
 }
 
 // ─── Customers ────────────────────────────────────────────────────────────────
 
 export async function getActiveCustomers(db: SQLite.SQLiteDatabase): Promise<Customer[]> {
   return db.getAllAsync<Customer>(
-    `SELECT * FROM customers WHERE status = 'active' ORDER BY name ASC`
+    `SELECT * FROM customers ORDER BY name ASC`
   );
 }
 
@@ -182,23 +187,12 @@ export async function getAllCustomers(db: SQLite.SQLiteDatabase): Promise<Custom
   return db.getAllAsync<Customer>(`SELECT * FROM customers ORDER BY name ASC`);
 }
 
-export async function getActiveCustomersWithBalance(db: SQLite.SQLiteDatabase): Promise<CustomerWithBalance[]> {
+export async function getCustomersWithBalance(db: SQLite.SQLiteDatabase): Promise<CustomerWithBalance[]> {
   return db.getAllAsync<CustomerWithBalance>(`
     SELECT c.*,
       COALESCE((
         SELECT SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE -t.amount END)
-        FROM transactions t WHERE t.customer_id = c.id AND t.status = 'active'
-      ), 0) as balance
-    FROM customers c WHERE c.status = 'active' ORDER BY c.name ASC
-  `);
-}
-
-export async function getAllCustomersWithBalance(db: SQLite.SQLiteDatabase): Promise<CustomerWithBalance[]> {
-  return db.getAllAsync<CustomerWithBalance>(`
-    SELECT c.*,
-      COALESCE((
-        SELECT SUM(CASE WHEN t.type = 'debit' THEN t.amount ELSE -t.amount END)
-        FROM transactions t WHERE t.customer_id = c.id AND t.status = 'active'
+        FROM transactions t WHERE t.customer_id = c.id
       ), 0) as balance
     FROM customers c ORDER BY c.name ASC
   `);
@@ -236,7 +230,7 @@ export async function bulkImportContacts(
 ): Promise<number> {
   // Get all existing phone numbers (last 10 digits)
   const existing = await db.getAllAsync<{ phone_number: string }>(
-    `SELECT phone_number FROM customers WHERE status = 'active'`
+    `SELECT phone_number FROM customers`
   );
   const existingSet = new Set(existing.map(e => normalizePhone(e.phone_number)));
 
@@ -272,14 +266,26 @@ export async function updateCustomer(
   );
 }
 
-export async function softDeleteCustomer(
+/** Check if a customer can be deleted (has no orders). */
+export async function canDeleteCustomer(
+  db: SQLite.SQLiteDatabase,
+  id: number,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) as cnt FROM orders WHERE customer_id = ?`,
+    [id]
+  );
+  return (row?.cnt ?? 0) === 0;
+}
+
+export async function deleteCustomer(
   db: SQLite.SQLiteDatabase,
   id: number,
 ): Promise<void> {
-  await db.runAsync(
-    `UPDATE customers SET status = 'deleted', updated_at = ? WHERE id = ?`,
-    [new Date().toISOString(), id]
-  );
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM transactions WHERE customer_id = ?`, [id]);
+    await db.runAsync(`DELETE FROM customers WHERE id = ?`, [id]);
+  });
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -292,7 +298,6 @@ const ORDER_SELECT = `
     c.phone_number AS customer_phone
   FROM orders o
   JOIN customers c ON o.customer_id = c.id
-  WHERE o.status = 'active'
 `;
 
 export async function getAllOrdersWithCustomer(
@@ -307,7 +312,7 @@ export async function getRecentOrdersWithCustomer(
   db: SQLite.SQLiteDatabase,
 ): Promise<OrderWithCustomer[]> {
   return db.getAllAsync<OrderWithCustomer>(
-    `${ORDER_SELECT} AND o.date >= date('now', '-6 days') ORDER BY o.date DESC`
+    `${ORDER_SELECT} WHERE o.date >= date('now', '-6 days') ORDER BY o.date DESC`
   );
 }
 
@@ -315,7 +320,7 @@ export async function getTodayOrdersWithCustomer(
   db: SQLite.SQLiteDatabase,
 ): Promise<OrderWithCustomer[]> {
   return db.getAllAsync<OrderWithCustomer>(
-    `${ORDER_SELECT} AND date(o.date) = date('now','localtime') ORDER BY o.date DESC`
+    `${ORDER_SELECT} WHERE date(o.date) = date('now','localtime') ORDER BY o.date DESC`
   );
 }
 
@@ -323,7 +328,7 @@ export async function getYesterdayOrdersWithCustomer(
   db: SQLite.SQLiteDatabase,
 ): Promise<OrderWithCustomer[]> {
   return db.getAllAsync<OrderWithCustomer>(
-    `${ORDER_SELECT} AND date(o.date) = date('now','localtime','-1 day') ORDER BY o.date DESC`
+    `${ORDER_SELECT} WHERE date(o.date) = date('now','localtime','-1 day') ORDER BY o.date DESC`
   );
 }
 
@@ -331,7 +336,7 @@ export async function getThisWeekOrdersWithCustomer(
   db: SQLite.SQLiteDatabase,
 ): Promise<OrderWithCustomer[]> {
   return db.getAllAsync<OrderWithCustomer>(
-    `${ORDER_SELECT} AND o.date >= date('now','localtime','weekday 0','-7 days') ORDER BY o.date DESC`
+    `${ORDER_SELECT} WHERE o.date >= date('now','localtime','weekday 0','-7 days') ORDER BY o.date DESC`
   );
 }
 
@@ -339,7 +344,7 @@ export async function getThisMonthOrdersWithCustomer(
   db: SQLite.SQLiteDatabase,
 ): Promise<OrderWithCustomer[]> {
   return db.getAllAsync<OrderWithCustomer>(
-    `${ORDER_SELECT} AND strftime('%Y-%m', o.date) = strftime('%Y-%m', 'now','localtime') ORDER BY o.date DESC`
+    `${ORDER_SELECT} WHERE strftime('%Y-%m', o.date) = strftime('%Y-%m', 'now','localtime') ORDER BY o.date DESC`
   );
 }
 
@@ -349,7 +354,7 @@ export async function getOrdersByDateRange(
   toDate: string,
 ): Promise<OrderWithCustomer[]> {
   return db.getAllAsync<OrderWithCustomer>(
-    `${ORDER_SELECT} AND date(o.date) >= date(?) AND date(o.date) <= date(?) ORDER BY o.date DESC`,
+    `${ORDER_SELECT} WHERE date(o.date) >= date(?) AND date(o.date) <= date(?) ORDER BY o.date DESC`,
     [fromDate, toDate]
   );
 }
@@ -358,7 +363,7 @@ export async function getDistinctOrderDates(
   db: SQLite.SQLiteDatabase,
 ): Promise<string[]> {
   const rows = await db.getAllAsync<{ d: string }>(
-    `SELECT DISTINCT date(date) as d FROM orders WHERE status = 'active' ORDER BY d DESC LIMIT 60`
+    `SELECT DISTINCT date(date) as d FROM orders ORDER BY d DESC LIMIT 60`
   );
   return rows.map(r => r.d);
 }
@@ -368,8 +373,8 @@ export async function getCustomersWithOrders(
 ): Promise<{ id: number; name: string }[]> {
   return db.getAllAsync<{ id: number; name: string }>(
     `SELECT DISTINCT c.id, c.name FROM customers c
-     JOIN orders o ON o.customer_id = c.id AND o.status = 'active'
-     WHERE c.status = 'active' ORDER BY c.name ASC`
+     JOIN orders o ON o.customer_id = c.id
+     ORDER BY c.name ASC`
   );
 }
 
@@ -384,14 +389,14 @@ export async function addOrder(
   let orderId = 0;
   await db.withTransactionAsync(async () => {
     const orderResult = await db.runAsync(
-      `INSERT INTO orders (customer_id, amount, description, quantity, date, updated_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'active')`,
+      `INSERT INTO orders (customer_id, amount, description, quantity, date, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [customer_id, amount, description.trim(), quantity, now, now]
     );
     orderId = orderResult.lastInsertRowId;
     const txnResult = await db.runAsync(
-      `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, status, created_date, updated_at)
-       VALUES (?, ?, 'debit', ?, ?, ?, 'active', ?, ?)`,
+      `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
+       VALUES (?, ?, 'debit', ?, ?, ?, ?, ?)`,
       [customer_id, orderId, amount, description.trim(), now, now, now]
     );
     await db.runAsync(`UPDATE orders SET transaction_id = ? WHERE id = ?`, [txnResult.lastInsertRowId, orderId]);
@@ -399,20 +404,13 @@ export async function addOrder(
   return orderId;
 }
 
-export async function softDeleteOrder(
+export async function deleteOrder(
   db: SQLite.SQLiteDatabase,
   id: number,
 ): Promise<void> {
-  const now = new Date().toISOString();
   await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      `UPDATE transactions SET status = 'deleted', updated_at = ? WHERE order_id = ? AND status = 'active'`,
-      [now, id]
-    );
-    await db.runAsync(
-      `UPDATE orders SET status = 'deleted', updated_at = ? WHERE id = ?`,
-      [now, id]
-    );
+    await db.runAsync(`DELETE FROM transactions WHERE order_id = ?`, [id]);
+    await db.runAsync(`DELETE FROM orders WHERE id = ?`, [id]);
   });
 }
 
@@ -425,7 +423,7 @@ export async function getTransactionsByCustomer(
     `SELECT t.*, COALESCE(o.quantity, 0) as quantity
      FROM transactions t
      LEFT JOIN orders o ON t.order_id = o.id
-     WHERE t.customer_id = ? AND t.status = 'active'
+     WHERE t.customer_id = ?
      ORDER BY t.date DESC`,
     [customerId]
   );
@@ -438,7 +436,7 @@ export async function getCustomerBalance(
     `SELECT
        COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END), 0) as total_debit,
        COALESCE(SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END), 0) as total_credit
-     FROM transactions WHERE customer_id = ? AND status = 'active'`,
+     FROM transactions WHERE customer_id = ?`,
     [customerId]
   );
   const totalDebit = row?.total_debit ?? 0;
@@ -451,20 +449,17 @@ export async function insertPayment(
 ): Promise<number> {
   const now = new Date().toISOString();
   const result = await db.runAsync(
-    `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, status, created_date, updated_at)
-     VALUES (?, NULL, 'credit', ?, ?, ?, 'active', ?, ?)`,
+    `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
+     VALUES (?, NULL, 'credit', ?, ?, ?, ?, ?)`,
     [customerId, amount, description.trim(), now, now, now]
   );
   return result.lastInsertRowId;
 }
 
-export async function softDeleteTransaction(
+export async function deleteTransaction(
   db: SQLite.SQLiteDatabase, id: number,
 ): Promise<void> {
-  await db.runAsync(
-    `UPDATE transactions SET status = 'deleted', updated_at = ? WHERE id = ?`,
-    [new Date().toISOString(), id]
-  );
+  await db.runAsync(`DELETE FROM transactions WHERE id = ?`, [id]);
 }
 
 // ─── Statements ───────────────────────────────────────────────────────────────
@@ -479,8 +474,8 @@ export async function insertStatement(
   let statementId = 0;
   await db.withTransactionAsync(async () => {
     const result = await db.runAsync(
-      `INSERT INTO statements (customer_id, from_date, to_date, total_debit, total_credit, balance, sent_via, status, created_date, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+      `INSERT INTO statements (customer_id, from_date, to_date, total_debit, total_credit, balance, sent_via, created_date, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [customerId, fromDate, now, totalDebit, totalCredit, balance, sentVia, now, now]
     );
     statementId = result.lastInsertRowId;
@@ -557,7 +552,7 @@ export async function restoreFromBackupData(
       await db.runAsync(
         `INSERT INTO customers (id, name, place, phone_number, created_date, updated_at, status)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [c.id, c.name, c.place, c.phone_number, c.created_date, c.updated_at, c.status],
+        [c.id, c.name, c.place, c.phone_number, c.created_date, c.updated_at, (c as any).status ?? 'active'],
       );
     }
 
@@ -566,7 +561,7 @@ export async function restoreFromBackupData(
       await db.runAsync(
         `INSERT INTO orders (id, customer_id, amount, description, quantity, transaction_id, date, updated_at, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [o.id, o.customer_id, o.amount, o.description, o.quantity ?? 0, o.transaction_id ?? null, o.date, o.updated_at, o.status],
+        [o.id, o.customer_id, o.amount, o.description, o.quantity ?? 0, o.transaction_id ?? null, o.date, o.updated_at, (o as any).status ?? 'active'],
       );
     }
 
@@ -576,14 +571,14 @@ export async function restoreFromBackupData(
         await db.runAsync(
           `INSERT INTO transactions (id, customer_id, order_id, type, amount, description, date, status, created_date, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [t.id, t.customer_id, t.order_id, t.type, t.amount, t.description, t.date, t.status, t.created_date, t.updated_at],
+          [t.id, t.customer_id, t.order_id, t.type, t.amount, t.description, t.date, (t as any).status ?? 'active', t.created_date, t.updated_at],
         );
       }
       for (const s of payload.statements ?? []) {
         await db.runAsync(
           `INSERT INTO statements (id, customer_id, from_date, to_date, total_debit, total_credit, balance, sent_via, status, created_date, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [s.id, s.customer_id, s.from_date, s.to_date, s.total_debit, s.total_credit, s.balance, s.sent_via, s.status, s.created_date, s.updated_at],
+          [s.id, s.customer_id, s.from_date, s.to_date, s.total_debit, s.total_credit, s.balance, s.sent_via, (s as any).status ?? 'active', s.created_date, s.updated_at],
         );
       }
       for (const st of payload.statement_transactions ?? []) {
@@ -595,7 +590,7 @@ export async function restoreFromBackupData(
     } else {
       // v1 backup — retroactively create debit transactions for active orders
       for (const o of payload.orders) {
-        if (o.status === 'active') {
+        if ((o as any).status !== 'deleted') {
           const txn = await db.runAsync(
             `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, status, created_date, updated_at)
              VALUES (?, ?, 'debit', ?, ?, ?, 'active', ?, ?)`,

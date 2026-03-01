@@ -1,13 +1,13 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
+  deleteOrder,
   getCustomersWithOrders,
   getDistinctOrderDates,
   getOrdersByDateRange,
   getTodayOrdersWithCustomer,
   getYesterdayOrdersWithCustomer,
   OrderWithCustomer,
-  softDeleteOrder,
 } from '@/services/database';
 import { sendWhatsAppInvoice } from '@/utils/whatsapp';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
@@ -254,7 +254,7 @@ export default function OrdersScreen() {
       { text: tr.cancel, style: 'cancel' },
       {
         text: tr.delete, style: 'destructive', onPress: async () => {
-          await softDeleteOrder(db, order.id);
+          await deleteOrder(db, order.id);
           load(filter);
         },
       },

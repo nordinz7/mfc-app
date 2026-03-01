@@ -1,6 +1,6 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
-import { bulkImportContacts, CustomerWithBalance, getActiveCustomersWithBalance, getAllCustomersWithBalance, softDeleteCustomer } from '@/services/database';
+import { bulkImportContacts, canDeleteCustomer, CustomerWithBalance, deleteCustomer, getCustomersWithBalance } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Contacts from 'expo-contacts';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -31,16 +31,6 @@ function makeStyles(c: AppColors) {
       borderBottomColor: c.border,
       gap: Spacing.sm,
     },
-    filterRow:   { flexDirection: 'row', gap: Spacing.sm },
-    chip: {
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: 6,
-      borderRadius: 20,
-      backgroundColor: c.filterInactive,
-    },
-    chipActive:     { backgroundColor: c.primary },
-    chipText:       { fontSize: FontSizes.sm, fontWeight: '700', color: c.textSecondary },
-    chipTextActive: { color: '#FFFFFF' },
     searchInput: {
       backgroundColor: c.inputBg,
       borderWidth: 1,
@@ -66,16 +56,9 @@ function makeStyles(c: AppColors) {
       shadowOpacity: 0.06,
       shadowRadius: 2,
     },
-    cardDeleted: { opacity: 0.5 },
     cardContent: { flex: 1 },
     nameRow:     { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
     name:        { fontSize: FontSizes.md, fontWeight: '700', color: c.text },
-    deletedBadge: {
-      paddingHorizontal: 6, paddingVertical: 1,
-      borderRadius: 4,
-      backgroundColor: c.danger,
-    },
-    deletedBadgeText: { fontSize: 10, color: '#FFFFFF', fontWeight: '700' },
     sub:         { fontSize: FontSizes.sm, color: c.textSecondary, marginTop: 2 },
     actions:     { flexDirection: 'row', gap: 2 },
     callBtn:     { padding: 8 },
@@ -114,19 +97,16 @@ export default function CustomersScreen() {
 
   const [customers, setCustomers] = useState<CustomerWithBalance[]>([]);
   const [search, setSearch] = useState('');
-  const [showAll, setShowAll] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [importingContacts, setImportingContacts] = useState(false);
 
-  const load = useCallback(async (all = showAll) => {
-    setCustomers(all ? await getAllCustomersWithBalance(db) : await getActiveCustomersWithBalance(db));
-  }, [db, showAll]);
+  const load = useCallback(async () => {
+    setCustomers(await getCustomersWithBalance(db));
+  }, [db]);
 
-  useFocusEffect(useCallback(() => { load(showAll); }, [showAll, load]));
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const onRefresh = async () => { setRefreshing(true); await load(showAll); setRefreshing(false); };
-
-  const toggleShowAll = (val: boolean) => { setShowAll(val); load(val); };
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
   const displayed = useMemo(() => {
     if (!search.trim()) return customers;
@@ -138,12 +118,17 @@ export default function CustomersScreen() {
     );
   }, [customers, search]);
 
-  const handleDelete = (item: CustomerWithBalance) => {
+  const handleDelete = async (item: CustomerWithBalance) => {
+    const canDel = await canDeleteCustomer(db, item.id);
+    if (!canDel) {
+      Alert.alert(tr.cannotDeleteCustomer, tr.cannotDeleteCustomerMsg(item.name));
+      return;
+    }
     Alert.alert(tr.removeCustomer, tr.removeCustomerMsg(item.name), [
       { text: tr.cancel, style: 'cancel' },
       {
-        text: tr.remove, style: 'destructive', onPress: async () => {
-          await softDeleteCustomer(db, item.id); load(showAll);
+        text: tr.delete, style: 'destructive', onPress: async () => {
+          await deleteCustomer(db, item.id); load();
         },
       },
     ]);
@@ -180,7 +165,7 @@ export default function CustomersScreen() {
       setImportingContacts(false);
       if (imported > 0) {
         Alert.alert(tr.importSuccess, tr.importSuccessMsg(imported));
-        load(showAll);
+        load();
       } else {
         Alert.alert(tr.importSuccess, tr.importNone);
       }
@@ -191,33 +176,27 @@ export default function CustomersScreen() {
   };
 
   const renderItem = ({ item }: { item: CustomerWithBalance }) => {
-    const isDeleted = item.status === 'deleted';
     return (
       <TouchableOpacity
-        style={[S.card, isDeleted && S.cardDeleted]}
-        onPress={() => !isDeleted && router.push({ pathname: '/customer-detail', params: { id: item.id } })}
-        activeOpacity={isDeleted ? 1 : 0.7}
+        style={S.card}
+        onPress={() => router.push({ pathname: '/customer-detail', params: { id: item.id } })}
+        activeOpacity={0.7}
       >
         <View style={S.cardContent}>
           <View style={S.nameRow}>
             <Text style={S.name}>{item.name}</Text>
-            {isDeleted && (
-              <View style={S.deletedBadge}>
-                <Text style={S.deletedBadgeText}>DELETED</Text>
-              </View>
-            )}
           </View>
           <Text style={S.sub} numberOfLines={1}>
             <MaterialIcons name="location-on" size={13} color={colors.textSecondary} /> {item.place}
             {'   '}
             <MaterialIcons name="phone" size={13} color={colors.textSecondary} /> {item.phone_number}
           </Text>
-          {!isDeleted && item.balance > 0 && (
+          {item.balance > 0 && (
             <Text style={{ fontSize: FontSizes.sm, color: colors.danger, fontWeight: '700', marginTop: 2 }}>
               ₹{item.balance.toFixed(2)} {tr.due}
             </Text>
           )}
-          {!isDeleted && item.balance <= 0 && (
+          {item.balance <= 0 && (
             <Text style={{ fontSize: FontSizes.sm, color: colors.success, fontWeight: '600', marginTop: 2 }}>
               {tr.paidInFull}
             </Text>
@@ -227,20 +206,16 @@ export default function CustomersScreen() {
           <TouchableOpacity style={S.callBtn} onPress={() => handleCall(item.phone_number)}>
             <MaterialIcons name="call" size={22} color={colors.success} />
           </TouchableOpacity>
-          {!isDeleted && (
-            <>
-              <TouchableOpacity
-                style={S.iconBtn}
-                onPress={() => router.push({ pathname: '/edit-customer', params: { id: item.id, name: item.name, place: item.place, phone: item.phone_number } })}
-                accessibilityLabel={tr.edit}
-              >
-                <MaterialIcons name="edit" size={22} color={colors.primary} />
-              </TouchableOpacity>
-              <TouchableOpacity style={S.iconBtn} onPress={() => handleDelete(item)} accessibilityLabel={tr.remove}>
-                <MaterialIcons name="delete-outline" size={22} color={colors.danger} />
-              </TouchableOpacity>
-            </>
-          )}
+          <TouchableOpacity
+            style={S.iconBtn}
+            onPress={() => router.push({ pathname: '/edit-customer', params: { id: item.id, name: item.name, place: item.place, phone: item.phone_number } })}
+            accessibilityLabel={tr.edit}
+          >
+            <MaterialIcons name="edit" size={22} color={colors.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={S.iconBtn} onPress={() => handleDelete(item)} accessibilityLabel={tr.remove}>
+            <MaterialIcons name="delete-outline" size={22} color={colors.danger} />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -249,14 +224,6 @@ export default function CustomersScreen() {
   return (
     <View style={S.container}>
       <View style={S.topBar}>
-        <View style={S.filterRow}>
-          <TouchableOpacity style={[S.chip, !showAll && S.chipActive]} onPress={() => toggleShowAll(false)}>
-            <Text style={[S.chipText, !showAll && S.chipTextActive]}>{tr.customers}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[S.chip, showAll && S.chipActive]} onPress={() => toggleShowAll(true)}>
-            <Text style={[S.chipText, showAll && S.chipTextActive]}>All</Text>
-          </TouchableOpacity>
-        </View>
         <TextInput
           style={S.searchInput}
           value={search}

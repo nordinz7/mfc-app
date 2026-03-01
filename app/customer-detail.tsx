@@ -2,9 +2,9 @@ import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
   Customer, TransactionWithQuantity,
+  deleteTransaction,
   getCustomerBalance,
   getCustomerById, getTransactionsByCustomer,
-  softDeleteTransaction,
 } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -152,7 +152,7 @@ export default function CustomerDetailScreen() {
       { text: tr.cancel, style: 'cancel' },
       {
         text: tr.delete, style: 'destructive', onPress: async () => {
-          await softDeleteTransaction(db, txn.id);
+          await deleteTransaction(db, txn.id);
           load();
         },
       },
