@@ -186,19 +186,14 @@ export default function CustomersScreen() {
           <View style={S.nameRow}>
             <Text style={S.name}>{item.name}</Text>
           </View>
-          <Text style={S.sub} numberOfLines={1}>
-            <MaterialIcons name="location-on" size={13} color={colors.textSecondary} /> {item.place}
-            {'   '}
-            <MaterialIcons name="phone" size={13} color={colors.textSecondary} /> {item.phone_number}
-          </Text>
+          {!!item.place?.trim() && (
+            <Text style={S.sub} numberOfLines={1}>
+              <MaterialIcons name="location-on" size={13} color={colors.textSecondary} /> {item.place}
+            </Text>
+          )}
           {item.balance > 0 && (
             <Text style={{ fontSize: FontSizes.sm, color: colors.danger, fontWeight: '700', marginTop: 2 }}>
               ₹{item.balance.toFixed(2)} {tr.due}
-            </Text>
-          )}
-          {item.balance <= 0 && (
-            <Text style={{ fontSize: FontSizes.sm, color: colors.success, fontWeight: '600', marginTop: 2 }}>
-              {tr.paidInFull}
             </Text>
           )}
         </View>
