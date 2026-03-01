@@ -48,6 +48,10 @@ function InnerLayout() {
           name="preview-statement"
           options={{ title: tr.previewStatement }}
         />
+        <Stack.Screen
+          name="developer"
+          options={{ title: 'Developer Tools' }}
+        />
       </Stack>
     </>
   );

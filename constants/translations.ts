@@ -156,6 +156,10 @@ const en = {
   sampleStatement: 'Sample Statement',
   sampleStatementDesc: 'Preview how your statement/bill looks to customers.',
   previewStatement: 'Preview Statement',
+  // Developer
+  developerMode: 'Developer Mode',
+  developerTools: 'Developer Tools',
+  disableDeveloperMode: 'Disable Developer Mode',
   // Quantity
   orderDate: 'Order Date',
   quantity: 'Quantity (kg)',
@@ -334,6 +338,10 @@ const ta: typeof en = {
   sampleStatement: 'மாதிரி அறிக்கை',
   sampleStatementDesc: 'வாடிக்கையாளர்களுக்கு அறிக்கை/பில் எப்படி தெரியும் என்பதைப் பாருங்கள்.',
   previewStatement: 'அறிக்கை முன்னோட்டம்',
+  // Developer
+  developerMode: 'டெவலப்பர் பயன்முறை',
+  developerTools: 'டெவலப்பர் கருவிகள்',
+  disableDeveloperMode: 'டெவலப்பர் பயன்முறையை முடக்கு',
   // Quantity
   orderDate: 'ஆர்டர் தேதி',
   quantity: 'அளவு (கிலோ)',

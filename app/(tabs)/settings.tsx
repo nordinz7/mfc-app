@@ -3,10 +3,11 @@ import { Lang } from '@/constants/translations';
 import { useSettings } from '@/contexts/SettingsContext';
 import { backupToGoogleDrive, createAndShareBackup, getLastBackupDate, isBackupOverdue, pickAndRestoreBackup } from '@/utils/backup';
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 function makeStyles(c: AppColors) {
@@ -90,6 +91,12 @@ export default function SettingsScreen() {
   const [restoring, setRestoring] = useState(false);
   const [lastBackup, setLastBackup] = useState<Date | null>(null);
   const [overdue, setOverdue] = useState(false);
+  const [devMode, setDevMode] = useState(false);
+  const [devTapCount, setDevTapCount] = useState(0);
+
+  useEffect(() => {
+    AsyncStorage.getItem('@mfc_dev_mode').then(v => { if (v === 'true') setDevMode(true); });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -153,6 +160,27 @@ export default function SettingsScreen() {
   };
 
   const busy = backupLoading || restoring;
+
+  const handleDevTap = useCallback(() => {
+    setDevTapCount(prev => {
+      const next = prev + 1;
+      if (next >= 7) {
+        setDevMode(true);
+        AsyncStorage.setItem('@mfc_dev_mode', 'true');
+        Alert.alert('🛠 Developer Mode', 'Developer mode has been enabled!');
+        return 0;
+      }
+      if (next >= 4) Alert.alert('', `${7 - next} taps to enable developer mode`);
+      return next;
+    });
+  }, []);
+
+  const disableDevMode = useCallback(() => {
+    Alert.alert('Disable Developer Mode', 'Are you sure?', [
+      { text: tr.cancel, style: 'cancel' },
+      { text: tr.proceed, onPress: () => { setDevMode(false); AsyncStorage.setItem('@mfc_dev_mode', 'false'); } },
+    ]);
+  }, [tr]);
 
   return (
     <ScrollView style={S.container} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -291,12 +319,30 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Developer Mode */}
+      {devMode && (
+        <View style={S.section}>
+          <Text style={S.sectionTitle}>{tr.developerMode}</Text>
+          <View style={S.card}>
+            <TouchableOpacity style={S.row} onPress={() => router.push('/developer')}>
+              <MaterialIcons name="code" size={24} color={colors.primary} style={S.rowIcon} />
+              <Text style={S.rowLabel}>{tr.developerTools}</Text>
+              <MaterialIcons name="chevron-right" size={22} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[S.row, S.rowLast]} onPress={disableDevMode}>
+              <MaterialIcons name="close" size={24} color={colors.danger} style={S.rowIcon} />
+              <Text style={[S.rowLabel, { color: colors.danger }]}>{tr.disableDeveloperMode}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* App info */}
-      <View style={S.appInfoCard}>
+      <TouchableOpacity style={S.appInfoCard} onPress={handleDevTap} activeOpacity={0.8}>
         <Image source={require('@/assets/images/icon.png')} style={S.appIcon} />
         <Text style={S.appName}>MFC App</Text>
         <Text style={S.appVersion}>v2.0.0 • Local Storage</Text>
-      </View>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
