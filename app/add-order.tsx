@@ -2,6 +2,7 @@ import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import { addOrder, Customer, getActiveCustomers } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
+import { addDays, format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
@@ -54,6 +55,16 @@ function makeStyles(c: AppColors) {
     customerOptionSub:  { fontSize: FontSizes.sm, color: c.textSecondary, marginTop: 2 },
     noCustomers:        { padding: Spacing.xxl, alignItems: 'center' },
     noCustomersText:    { fontSize: FontSizes.lg, color: c.textSecondary, textAlign: 'center' },
+    dateRow:            { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
+    dateChip: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: c.filterInactive,
+    },
+    dateChipActive:     { backgroundColor: c.primary },
+    dateChipText:       { fontSize: FontSizes.md, fontWeight: '700', color: c.textSecondary },
+    dateChipTextActive: { color: '#FFFFFF' },
   });
 }
 
@@ -71,6 +82,16 @@ export default function AddOrderScreen() {
   const [description, setDescription]       = useState('');
   const [saving, setSaving]                 = useState(false);
 
+  type DateOption = 'tomorrow' | 'today' | 'yesterday';
+  const [selectedDateOption, setSelectedDateOption] = useState<DateOption>('tomorrow');
+
+  const getDateForOption = (option: DateOption): string => {
+    const now = new Date();
+    if (option === 'tomorrow')  return addDays(now, 1).toISOString();
+    if (option === 'yesterday') return addDays(now, -1).toISOString();
+    return now.toISOString();
+  };
+
   useEffect(() => { getActiveCustomers(db).then(setCustomers); }, [db]);
 
   const handleSave = async () => {
@@ -81,7 +102,7 @@ export default function AddOrderScreen() {
     setSaving(true);
     try {
       const qty = parseInt(quantity, 10) || 0;
-      await addOrder(db, selectedCustomer.id, num, description, qty);
+      await addOrder(db, selectedCustomer.id, num, description, qty, getDateForOption(selectedDateOption));
       router.back();
     } catch {
       Alert.alert('Error', tr.couldNotSave);
@@ -99,6 +120,22 @@ export default function AddOrderScreen() {
             </Text>
             <MaterialIcons name="arrow-drop-down" size={28} color={colors.textSecondary} />
           </TouchableOpacity>
+        </View>
+        <View style={S.field}>
+          <Text style={S.label}><MaterialIcons name="event" size={16} color={colors.text} /> {tr.orderDate}</Text>
+          <View style={S.dateRow}>
+            {(['tomorrow', 'today', 'yesterday'] as DateOption[]).map(opt => (
+              <TouchableOpacity
+                key={opt}
+                style={[S.dateChip, selectedDateOption === opt && S.dateChipActive]}
+                onPress={() => setSelectedDateOption(opt)}
+              >
+                <Text style={[S.dateChipText, selectedDateOption === opt && S.dateChipTextActive]}>
+                  {tr[opt]} ({format(addDays(new Date(), opt === 'tomorrow' ? 1 : opt === 'yesterday' ? -1 : 0), 'dd/MM')})
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
         <View style={S.field}>
           <Text style={S.label}><MaterialIcons name="currency-rupee" size={16} color={colors.text} /> {tr.amount} *</Text>

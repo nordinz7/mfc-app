@@ -5,6 +5,7 @@ import {
   getCustomersWithOrders,
   getDistinctOrderDates,
   getOrdersByDateRange,
+  getTomorrowOrdersWithCustomer,
   getTodayOrdersWithCustomer,
   getYesterdayOrdersWithCustomer,
   OrderWithCustomer,
@@ -27,7 +28,7 @@ import {
   View,
 } from 'react-native';
 
-type FilterMode = 'today' | 'yesterday' | 'date' | 'customer';
+type FilterMode = 'tomorrow' | 'today' | 'yesterday' | 'date' | 'customer';
 
 interface DropdownItem { id: string; label: string }
 
@@ -191,6 +192,7 @@ export default function OrdersScreen() {
   }, [db]);
 
   const load = useCallback(async (mode: FilterMode = filter) => {
+    if (mode === 'tomorrow')  return setOrders(await getTomorrowOrdersWithCustomer(db));
     if (mode === 'today')     return setOrders(await getTodayOrdersWithCustomer(db));
     if (mode === 'yesterday') return setOrders(await getYesterdayOrdersWithCustomer(db));
     if (mode === 'date' && selectedDate) {
@@ -219,7 +221,7 @@ export default function OrdersScreen() {
   };
 
   const handleFilter = (mode: FilterMode) => {
-    if (mode === 'today' || mode === 'yesterday') {
+    if (mode === 'tomorrow' || mode === 'today' || mode === 'yesterday') {
       setSelectedDate(null);
       setSelectedCustomerId(null);
     }
@@ -342,6 +344,14 @@ export default function OrdersScreen() {
     <View style={S.container}>
       <View style={S.topBar}>
         <View style={S.filterRow}>
+          {/* Tomorrow chip */}
+          <TouchableOpacity
+            style={[S.chip, filter === 'tomorrow' && S.chipActive]}
+            onPress={() => handleFilter('tomorrow')}
+          >
+            <Text style={[S.chipText, filter === 'tomorrow' && S.chipTextActive]}>{tr.tomorrow}</Text>
+          </TouchableOpacity>
+
           {/* Today chip */}
           <TouchableOpacity
             style={[S.chip, filter === 'today' && S.chipActive]}

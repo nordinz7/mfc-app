@@ -23,6 +23,7 @@ const en = {
   newOrder: 'New Order',
   noOrdersFound: 'No orders found.',
   tapToAddOrder: 'Tap + to record a new order.',
+  tomorrow: 'Tomorrow',
   today: 'Today',
   yesterday: 'Yesterday',
   thisWeek: 'This Week',
@@ -154,6 +155,7 @@ const en = {
   statementThanks: 'Thank you! 🙏',
   noBalanceDue: 'No balance due for this customer.',
   // Quantity
+  orderDate: 'Order Date',
   quantity: 'Quantity (kg)',
   quantityPlaceholder: 'e.g. 2.5',
   // Company
@@ -206,6 +208,7 @@ const ta: typeof en = {
   newOrder: 'புதிய ஆர்டர்',
   noOrdersFound: 'ஆர்டர்கள் இல்லை.',
   tapToAddOrder: '+ ஐ தட்டி ஆர்டர் சேர்க்கவும்.',
+  tomorrow: 'நாளை',
   today: 'இன்று',
   yesterday: 'நேற்று',
   thisWeek: 'இந்த வாரம்',
@@ -328,6 +331,7 @@ const ta: typeof en = {
   statementThanks: 'நன்றி! 🙏',
   noBalanceDue: 'இந்த வாடிக்கையாளருக்கு நிலுவை இல்லை.',
   // Quantity
+  orderDate: 'ஆர்டர் தேதி',
   quantity: 'அளவு (கிலோ)',
   quantityPlaceholder: 'எ.கா. 2.5',
   // Company

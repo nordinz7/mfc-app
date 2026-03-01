@@ -341,6 +341,14 @@ export async function getRecentOrdersWithCustomer(
   );
 }
 
+export async function getTomorrowOrdersWithCustomer(
+  db: SQLite.SQLiteDatabase,
+): Promise<OrderWithCustomer[]> {
+  return db.getAllAsync<OrderWithCustomer>(
+    `${ORDER_SELECT} WHERE date(o.date) = date('now','localtime','+1 day') ORDER BY o.date DESC`
+  );
+}
+
 export async function getTodayOrdersWithCustomer(
   db: SQLite.SQLiteDatabase,
 ): Promise<OrderWithCustomer[]> {
@@ -409,20 +417,22 @@ export async function addOrder(
   amount: number,
   description: string,
   quantity: number = 0,
+  date?: string,
 ): Promise<number> {
   const now = new Date().toISOString();
+  const orderDate = date ?? now;
   let orderId = 0;
   await db.withTransactionAsync(async () => {
     const orderResult = await db.runAsync(
       `INSERT INTO orders (customer_id, amount, description, quantity, date, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [customer_id, amount, description.trim(), quantity, now, now]
+      [customer_id, amount, description.trim(), quantity, orderDate, now]
     );
     orderId = orderResult.lastInsertRowId;
     const txnResult = await db.runAsync(
       `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
        VALUES (?, ?, 'debit', ?, ?, ?, ?, ?)`,
-      [customer_id, orderId, amount, description.trim(), now, now, now]
+      [customer_id, orderId, amount, description.trim(), orderDate, now, now]
     );
     await db.runAsync(`UPDATE orders SET transaction_id = ? WHERE id = ?`, [txnResult.lastInsertRowId, orderId]);
   });
