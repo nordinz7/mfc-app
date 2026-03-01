@@ -1,4 +1,4 @@
-import { Transaction } from '@/services/database';
+import { TransactionWithQuantity } from '@/services/database';
 import { format } from 'date-fns';
 import React, { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -9,7 +9,7 @@ export interface StatementBillProps {
   customerName: string;
   customerPlace: string;
   date: string;
-  transactions: Transaction[];
+  transactions: TransactionWithQuantity[];
   totalOrders: number;
   totalPaid: number;
   balance: number;
@@ -23,7 +23,7 @@ const LABELS = {
     place: 'ADIRAMPATTINAM',
     to: 'To',
     date: 'Date',
-    slNo: 'S.No',
+    slNo: '#',
     dateCol: 'Date',
     particulars: 'Particulars',
     amount: 'Amount (₹)',
@@ -41,7 +41,7 @@ const LABELS = {
     place: 'ADIRAMPATTINAM',
     to: 'பெறுநர்',
     date: 'தேதி',
-    slNo: 'வ.எண்',
+    slNo: '#',
     dateCol: 'தேதி',
     particulars: 'விவரம்',
     amount: 'தொகை (₹)',
@@ -111,7 +111,6 @@ const StatementBill = forwardRef<View, StatementBillProps>(
 
         {/* ─── Table Header ──────────────────────── */}
         <View style={S.tableHeader}>
-          <Text style={[S.thText, S.colSl]}>{L.slNo}</Text>
           <Text style={[S.thText, S.colDate]}>{L.dateCol}</Text>
           <Text style={[S.thText, S.colDesc]}>{L.particulars}</Text>
           <Text style={[S.thText, S.colAmt, { textAlign: 'right' }]}>{L.amount}</Text>
@@ -125,22 +124,23 @@ const StatementBill = forwardRef<View, StatementBillProps>(
               key={txn.id}
               style={[S.tableRow, idx % 2 === 0 ? S.rowEven : S.rowOdd]}
             >
-              <Text style={[S.tdText, S.colSl]}>{idx + 1}</Text>
               <Text style={[S.tdText, S.colDate]}>
-                {format(new Date(txn.date), 'dd/MM')}
+                {format(new Date(txn.date), 'dd/MM/yyyy')}
               </Text>
               <Text style={[S.tdText, S.colDesc]} numberOfLines={1}>
-                {isDebit ? `📦 ${txn.description}` : `💰 ${txn.description}`}
+                {isDebit
+                  ? `📦 ${txn.description}${txn.quantity > 0 ? ` ×${Math.round(txn.quantity)}` : ''}`
+                  : `💰 ${txn.description}`}
               </Text>
               <Text
                 style={[
                   S.tdText,
                   S.colAmt,
-                  { textAlign: 'right', color: isDebit ? '#B71C1C' : '#1B5E20' },
+                  { textAlign: 'right', color: isDebit ? '#1B5E20' : '#B71C1C' },
                 ]}
               >
-                {isDebit ? '-' : '+'}
-                {txn.amount.toFixed(2)}
+                {isDebit ? '' : '-'}
+                {Math.round(txn.amount)}
               </Text>
             </View>
           );
@@ -155,12 +155,12 @@ const StatementBill = forwardRef<View, StatementBillProps>(
         <View style={S.summaryBlock}>
           <View style={S.summaryRow}>
             <Text style={S.summaryLabel}>{L.totalOrders}</Text>
-            <Text style={S.summaryValue}>₹{totalOrders.toFixed(2)}</Text>
+            <Text style={S.summaryValue}>₹{Math.round(totalOrders)}</Text>
           </View>
           <View style={S.summaryRow}>
             <Text style={S.summaryLabel}>{L.totalPaid}</Text>
-            <Text style={[S.summaryValue, { color: '#1B5E20' }]}>
-              ₹{totalPaid.toFixed(2)}
+            <Text style={[S.summaryValue, { color: '#B71C1C' }]}>
+              ₹{Math.round(totalPaid)}
             </Text>
           </View>
           <View style={S.divider} />
@@ -172,7 +172,7 @@ const StatementBill = forwardRef<View, StatementBillProps>(
                 { color: balance > 0 ? '#B71C1C' : '#1B5E20' },
               ]}
             >
-              ₹{Math.abs(balance).toFixed(2)}
+              ₹{Math.round(Math.abs(balance))}
             </Text>
           </View>
         </View>
@@ -303,8 +303,7 @@ const S = StyleSheet.create({
     color: '#222',
     fontWeight: '500',
   },
-  colSl: { width: 32 },
-  colDate: { width: 48 },
+  colDate: { width: 68 },
   colDesc: { flex: 1, paddingHorizontal: 4 },
   colAmt: { width: 72 },
   // Summary

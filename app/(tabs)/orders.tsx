@@ -1,33 +1,35 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
-    getAllOrdersWithCustomer,
-    getThisMonthOrdersWithCustomer,
-    getThisWeekOrdersWithCustomer,
-    getTodayOrdersWithCustomer,
-    getYesterdayOrdersWithCustomer,
-    OrderWithCustomer,
-    softDeleteOrder,
+  getCustomersWithOrders,
+  getDistinctOrderDates,
+  getOrdersByDateRange,
+  getTodayOrdersWithCustomer,
+  getYesterdayOrdersWithCustomer,
+  OrderWithCustomer,
+  softDeleteOrder,
 } from '@/services/database';
 import { sendWhatsAppInvoice } from '@/utils/whatsapp';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
-type FilterMode = 'today' | 'yesterday' | 'week' | 'month' | 'all';
+type FilterMode = 'today' | 'yesterday' | 'date' | 'customer';
+
+interface DropdownItem { id: string; label: string }
 
 function makeStyles(c: AppColors) {
   return StyleSheet.create({
@@ -41,26 +43,20 @@ function makeStyles(c: AppColors) {
       borderBottomColor: c.border,
       gap: Spacing.sm,
     },
-    filterRow:    { flexDirection: 'row', gap: Spacing.sm },
+    filterRow:    { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' },
     chip: {
       paddingHorizontal: Spacing.lg,
       paddingVertical: 6,
       borderRadius: 20,
       backgroundColor: c.filterInactive,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
     },
     chipActive:     { backgroundColor: c.primary },
     chipText:       { fontSize: FontSizes.sm, fontWeight: '700', color: c.textSecondary },
     chipTextActive: { color: '#FFFFFF' },
-    searchInput: {
-      backgroundColor: c.inputBg,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: Radius.md,
-      paddingHorizontal: Spacing.md,
-      paddingVertical: 8,
-      fontSize: FontSizes.md,
-      color: c.text,
-    },
+    chipIcon:       { marginLeft: 2 },
     summary: {
       flexDirection: 'row', justifyContent: 'space-between',
       paddingHorizontal: Spacing.lg, paddingVertical: 6,
@@ -109,6 +105,55 @@ function makeStyles(c: AppColors) {
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.35, shadowRadius: 8,
     },
+    // Modal / dropdown styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      maxHeight: '60%',
+      paddingBottom: 30,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    modalTitle: {
+      fontSize: FontSizes.lg,
+      fontWeight: '700',
+      color: c.text,
+    },
+    modalClose: {
+      fontSize: FontSizes.lg,
+      color: c.primary,
+      fontWeight: '600',
+    },
+    modalItem: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+    },
+    modalItemActive: {
+      backgroundColor: c.primaryLight,
+    },
+    modalItemText: {
+      fontSize: FontSizes.md,
+      color: c.text,
+    },
+    modalItemTextActive: {
+      color: c.primary,
+      fontWeight: '700',
+    },
   });
 }
 
@@ -120,58 +165,120 @@ export default function OrdersScreen() {
 
   const [orders, setOrders] = useState<OrderWithCustomer[]>([]);
   const [filter, setFilter] = useState<FilterMode>('today');
-  const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+
+  // Dropdown states
+  const [dateOptions, setDateOptions] = useState<DropdownItem[]>([]);
+  const [customerOptions, setCustomerOptions] = useState<DropdownItem[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  const loadDropdownData = useCallback(async () => {
+    const [dates, customers] = await Promise.all([
+      getDistinctOrderDates(db),
+      getCustomersWithOrders(db),
+    ]);
+    setDateOptions(dates.map(d => ({
+      id: d,
+      label: format(parseISO(d), 'dd/MM/yyyy'),
+    })));
+    setCustomerOptions(customers.map(c => ({
+      id: String(c.id),
+      label: c.name,
+    })));
+  }, [db]);
 
   const load = useCallback(async (mode: FilterMode = filter) => {
     if (mode === 'today')     return setOrders(await getTodayOrdersWithCustomer(db));
     if (mode === 'yesterday') return setOrders(await getYesterdayOrdersWithCustomer(db));
-    if (mode === 'week')      return setOrders(await getThisWeekOrdersWithCustomer(db));
-    if (mode === 'month')     return setOrders(await getThisMonthOrdersWithCustomer(db));
-    setOrders(await getAllOrdersWithCustomer(db));
-  }, [db, filter]);
+    if (mode === 'date' && selectedDate) {
+      return setOrders(await getOrdersByDateRange(db, selectedDate, selectedDate));
+    }
+    if (mode === 'customer' && selectedCustomerId) {
+      // Load all orders then filter by customer
+      const all = await getTodayOrdersWithCustomer(db);
+      const allOrders = await getOrdersByDateRange(db, '2000-01-01', '2099-12-31');
+      return setOrders(allOrders.filter(o => String(o.customer_id) === selectedCustomerId));
+    }
+    // fallback
+    setOrders(await getTodayOrdersWithCustomer(db));
+  }, [db, filter, selectedDate, selectedCustomerId]);
 
-  useFocusEffect(useCallback(() => { load(filter); }, [filter, load]));
+  useFocusEffect(useCallback(() => {
+    loadDropdownData();
+    load(filter);
+  }, [filter, load, loadDropdownData]));
 
-  const onRefresh = async () => { setRefreshing(true); await load(filter); setRefreshing(false); };
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDropdownData();
+    await load(filter);
+    setRefreshing(false);
+  };
 
-  const handleFilter = (mode: FilterMode) => { setFilter(mode); load(mode); };
+  const handleFilter = (mode: FilterMode) => {
+    if (mode === 'today' || mode === 'yesterday') {
+      setSelectedDate(null);
+      setSelectedCustomerId(null);
+    }
+    setFilter(mode);
+    if (mode !== 'date' && mode !== 'customer') {
+      load(mode);
+    }
+  };
+
+  const handleDateSelect = (dateId: string) => {
+    setSelectedDate(dateId);
+    setSelectedCustomerId(null);
+    setFilter('date');
+    setShowDateModal(false);
+    // Load with the new date
+    getOrdersByDateRange(db, dateId, dateId).then(setOrders);
+  };
+
+  const handleCustomerSelect = (custId: string) => {
+    setSelectedCustomerId(custId);
+    setSelectedDate(null);
+    setFilter('customer');
+    setShowCustomerModal(false);
+    // Load all orders for this customer
+    getOrdersByDateRange(db, '2000-01-01', '2099-12-31').then(all =>
+      setOrders(all.filter(o => String(o.customer_id) === custId))
+    );
+  };
 
   const handleDelete = (order: OrderWithCustomer) => {
     Alert.alert(tr.deleteOrder, tr.deleteOrderMsg(order.customer_name), [
       { text: tr.cancel, style: 'cancel' },
       {
         text: tr.delete, style: 'destructive', onPress: async () => {
-          await softDeleteOrder(db, order.id); load(filter);
+          await softDeleteOrder(db, order.id);
+          load(filter);
         },
       },
     ]);
   };
 
-  const displayed = useMemo(() => {
-    if (!search.trim()) return orders;
-    const q = search.trim().toLowerCase();
-    return orders.filter(o =>
-      o.customer_name.toLowerCase().includes(q) ||
-      o.description.toLowerCase().includes(q)
-    );
-  }, [orders, search]);
-
+  const displayed = orders;
   const totalAmount = displayed.reduce((s, o) => s + o.amount, 0);
 
-  const filters: { key: FilterMode; label: string }[] = [
-    { key: 'today',     label: tr.today },
-    { key: 'yesterday', label: tr.yesterday },
-    { key: 'week',      label: tr.thisWeek },
-    { key: 'month',     label: tr.thisMonth },
-    { key: 'all',       label: tr.allOrders },
-  ];
+  // Active label for date chip
+  const dateChipLabel = selectedDate && filter === 'date'
+    ? format(parseISO(selectedDate), 'dd/MM/yyyy')
+    : tr.filterByDate;
+
+  // Active label for customer chip
+  const customerChipLabel = selectedCustomerId && filter === 'customer'
+    ? customerOptions.find(c => c.id === selectedCustomerId)?.label ?? tr.filterByCustomer
+    : tr.filterByCustomer;
 
   const renderItem = ({ item }: { item: OrderWithCustomer }) => (
     <View style={S.card}>
       <View style={S.row1}>
         <Text style={S.customerName} numberOfLines={1}>{item.customer_name}</Text>
-        <Text style={S.amount}>&#8377;{item.amount.toFixed(2)}</Text>
+        <Text style={S.amount}>&#8377;{item.amount}</Text>
       </View>
       <View style={S.row2}>
         <Text style={S.row2Text} numberOfLines={1}>
@@ -192,28 +299,97 @@ export default function OrdersScreen() {
     </View>
   );
 
+  const renderDropdownModal = (
+    visible: boolean,
+    onClose: () => void,
+    title: string,
+    items: DropdownItem[],
+    selectedId: string | null,
+    onSelect: (id: string) => void,
+  ) => (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={S.modalOverlay} onPress={onClose}>
+        <Pressable style={S.modalContent} onPress={() => {}}>
+          <View style={S.modalHeader}>
+            <Text style={S.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={S.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={items}
+            keyExtractor={i => i.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[S.modalItem, item.id === selectedId && S.modalItemActive]}
+                onPress={() => onSelect(item.id)}
+              >
+                <Text style={[
+                  S.modalItemText,
+                  item.id === selectedId && S.modalItemTextActive,
+                ]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
   return (
     <View style={S.container}>
       <View style={S.topBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.filterRow}>
-          {filters.map(({ key, label }) => (
-            <TouchableOpacity
-              key={key}
-              style={[S.chip, filter === key && S.chipActive]}
-              onPress={() => handleFilter(key)}
-            >
-              <Text style={[S.chipText, filter === key && S.chipTextActive]}>{label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        <TextInput
-          style={S.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder={tr.searchCustomers}
-          placeholderTextColor={colors.textMuted}
-          clearButtonMode="while-editing"
-        />
+        <View style={S.filterRow}>
+          {/* Today chip */}
+          <TouchableOpacity
+            style={[S.chip, filter === 'today' && S.chipActive]}
+            onPress={() => handleFilter('today')}
+          >
+            <Text style={[S.chipText, filter === 'today' && S.chipTextActive]}>{tr.today}</Text>
+          </TouchableOpacity>
+
+          {/* Yesterday chip */}
+          <TouchableOpacity
+            style={[S.chip, filter === 'yesterday' && S.chipActive]}
+            onPress={() => handleFilter('yesterday')}
+          >
+            <Text style={[S.chipText, filter === 'yesterday' && S.chipTextActive]}>{tr.yesterday}</Text>
+          </TouchableOpacity>
+
+          {/* Date dropdown chip */}
+          <TouchableOpacity
+            style={[S.chip, filter === 'date' && S.chipActive]}
+            onPress={() => setShowDateModal(true)}
+          >
+            <Text style={[S.chipText, filter === 'date' && S.chipTextActive]} numberOfLines={1}>
+              {dateChipLabel}
+            </Text>
+            <MaterialIcons
+              name="arrow-drop-down"
+              size={18}
+              color={filter === 'date' ? '#FFFFFF' : colors.textSecondary}
+              style={S.chipIcon}
+            />
+          </TouchableOpacity>
+
+          {/* Customer dropdown chip */}
+          <TouchableOpacity
+            style={[S.chip, filter === 'customer' && S.chipActive]}
+            onPress={() => setShowCustomerModal(true)}
+          >
+            <Text style={[S.chipText, filter === 'customer' && S.chipTextActive]} numberOfLines={1}>
+              {customerChipLabel}
+            </Text>
+            <MaterialIcons
+              name="arrow-drop-down"
+              size={18}
+              color={filter === 'customer' ? '#FFFFFF' : colors.textSecondary}
+              style={S.chipIcon}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {displayed.length > 0 && (
@@ -221,7 +397,7 @@ export default function OrdersScreen() {
           <Text style={S.summaryText}>
             {displayed.length} {displayed.length === 1 ? tr.order : tr.orders_plural}
           </Text>
-          <Text style={S.summaryAmount}>{tr.total}: &#8377;{totalAmount.toFixed(2)}</Text>
+          <Text style={S.summaryAmount}>{tr.total}: &#8377;{totalAmount}</Text>
         </View>
       )}
 
@@ -243,6 +419,26 @@ export default function OrdersScreen() {
       <TouchableOpacity style={S.fab} onPress={() => router.push('/add-order')} accessibilityLabel={tr.addOrder}>
         <MaterialIcons name="add" size={34} color="#FFFFFF" />
       </TouchableOpacity>
+
+      {/* Date picker modal */}
+      {renderDropdownModal(
+        showDateModal,
+        () => setShowDateModal(false),
+        tr.filterByDate,
+        dateOptions,
+        selectedDate,
+        handleDateSelect,
+      )}
+
+      {/* Customer picker modal */}
+      {renderDropdownModal(
+        showCustomerModal,
+        () => setShowCustomerModal(false),
+        tr.filterByCustomer,
+        customerOptions,
+        selectedCustomerId,
+        handleCustomerSelect,
+      )}
     </View>
   );
 }

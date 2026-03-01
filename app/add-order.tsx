@@ -75,12 +75,12 @@ export default function AddOrderScreen() {
 
   const handleSave = async () => {
     if (!selectedCustomer) { Alert.alert(tr.required, tr.pleaseSelectCustomer); return; }
-    const num = parseFloat(amount);
+    const num = parseInt(amount, 10);
     if (!amount || isNaN(num) || num <= 0) { Alert.alert(tr.required, tr.enterAmount); return; }
     if (!description.trim()) { Alert.alert(tr.required, tr.enterDesc); return; }
     setSaving(true);
     try {
-      const qty = parseFloat(quantity) || 0;
+      const qty = parseInt(quantity, 10) || 0;
       await addOrder(db, selectedCustomer.id, num, description, qty);
       router.back();
     } catch {
@@ -102,11 +102,11 @@ export default function AddOrderScreen() {
         </View>
         <View style={S.field}>
           <Text style={S.label}><MaterialIcons name="currency-rupee" size={16} color={colors.text} /> {tr.amount} *</Text>
-          <TextInput style={S.input} value={amount} onChangeText={setAmount} placeholder={tr.amountPlaceholder} placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" returnKeyType="next" />
+          <TextInput style={S.input} value={amount} onChangeText={t => setAmount(t.replace(/[^0-9]/g, ''))} placeholder={tr.amountPlaceholder} placeholderTextColor={colors.textMuted} keyboardType="number-pad" returnKeyType="next" />
         </View>
         <View style={S.field}>
           <Text style={S.label}><MaterialIcons name="scale" size={16} color={colors.text} /> {tr.quantity}</Text>
-          <TextInput style={S.input} value={quantity} onChangeText={setQuantity} placeholder={tr.quantityPlaceholder} placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" returnKeyType="next" />
+          <TextInput style={S.input} value={quantity} onChangeText={t => setQuantity(t.replace(/[^0-9]/g, ''))} placeholder={tr.quantityPlaceholder} placeholderTextColor={colors.textMuted} keyboardType="number-pad" returnKeyType="next" />
         </View>
         <View style={S.field}>
           <Text style={S.label}><MaterialIcons name="notes" size={16} color={colors.text} /> {tr.description} *</Text>

@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 function makeStyles(c: AppColors) {
   return StyleSheet.create({
@@ -49,6 +49,13 @@ function makeStyles(c: AppColors) {
       paddingVertical: 0,
       minWidth: 140,
     },
+    companyInputFull: {
+      flex: 1,
+      fontSize: FontSizes.lg,
+      color: c.text,
+      fontWeight: '600',
+      paddingVertical: 0,
+    },
   });
 }
 
@@ -72,7 +79,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={S.container}>
+    <ScrollView style={S.container} contentContainerStyle={{ paddingBottom: 40 }}>
       {/* Appearance */}
       <View style={S.section}>
         <Text style={S.sectionTitle}>{tr.theme}</Text>
@@ -120,9 +127,8 @@ export default function SettingsScreen() {
         <View style={S.card}>
           <View style={S.row}>
             <MaterialIcons name="business" size={24} color={colors.primary} style={S.rowIcon} />
-            <Text style={S.rowLabel}>{tr.companyName}</Text>
             <TextInput
-              style={S.companyInput}
+              style={S.companyInputFull}
               value={companyName}
               onChangeText={setCompanyName}
               placeholder={tr.companyNamePlaceholder}
@@ -131,9 +137,8 @@ export default function SettingsScreen() {
           </View>
           <View style={[S.row, S.rowLast]}>
             <MaterialIcons name="location-on" size={24} color={colors.primary} style={S.rowIcon} />
-            <Text style={S.rowLabel}>{tr.companyPlace}</Text>
             <TextInput
-              style={S.companyInput}
+              style={S.companyInputFull}
               value={companyPlace}
               onChangeText={setCompanyPlace}
               placeholder={tr.companyPlacePlaceholder}
@@ -171,6 +176,6 @@ export default function SettingsScreen() {
         <Text style={S.appName}>MFC App</Text>
         <Text style={S.appVersion}>v2.0.0 • Local Storage</Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }

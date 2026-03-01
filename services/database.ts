@@ -43,6 +43,10 @@ export interface Transaction {
   updated_at: string;
 }
 
+export interface TransactionWithQuantity extends Transaction {
+  quantity: number;
+}
+
 export interface Statement {
   id: number;
   customer_id: number;
@@ -215,6 +219,45 @@ export async function addCustomer(
   return result.lastInsertRowId;
 }
 
+/** Normalize phone to last 10 digits (strips country code / non-digits). */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : digits;
+}
+
+/**
+ * Bulk-import contacts as customers.
+ * Skips contacts whose phone already matches an existing customer.
+ * Returns count of newly added customers.
+ */
+export async function bulkImportContacts(
+  db: SQLite.SQLiteDatabase,
+  contacts: { name: string; phone: string }[],
+): Promise<number> {
+  // Get all existing phone numbers (last 10 digits)
+  const existing = await db.getAllAsync<{ phone_number: string }>(
+    `SELECT phone_number FROM customers WHERE status = 'active'`
+  );
+  const existingSet = new Set(existing.map(e => normalizePhone(e.phone_number)));
+
+  let imported = 0;
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    for (const c of contacts) {
+      const phone = normalizePhone(c.phone);
+      if (!phone || existingSet.has(phone)) continue;
+      await db.runAsync(
+        `INSERT INTO customers (name, place, phone_number, created_date, updated_at, status)
+         VALUES (?, ?, ?, ?, ?, 'active')`,
+        [c.name.trim(), '', phone, now, now]
+      );
+      existingSet.add(phone);
+      imported++;
+    }
+  });
+  return imported;
+}
+
 export async function updateCustomer(
   db: SQLite.SQLiteDatabase,
   id: number,
@@ -300,6 +343,36 @@ export async function getThisMonthOrdersWithCustomer(
   );
 }
 
+export async function getOrdersByDateRange(
+  db: SQLite.SQLiteDatabase,
+  fromDate: string,
+  toDate: string,
+): Promise<OrderWithCustomer[]> {
+  return db.getAllAsync<OrderWithCustomer>(
+    `${ORDER_SELECT} AND date(o.date) >= date(?) AND date(o.date) <= date(?) ORDER BY o.date DESC`,
+    [fromDate, toDate]
+  );
+}
+
+export async function getDistinctOrderDates(
+  db: SQLite.SQLiteDatabase,
+): Promise<string[]> {
+  const rows = await db.getAllAsync<{ d: string }>(
+    `SELECT DISTINCT date(date) as d FROM orders WHERE status = 'active' ORDER BY d DESC LIMIT 60`
+  );
+  return rows.map(r => r.d);
+}
+
+export async function getCustomersWithOrders(
+  db: SQLite.SQLiteDatabase,
+): Promise<{ id: number; name: string }[]> {
+  return db.getAllAsync<{ id: number; name: string }>(
+    `SELECT DISTINCT c.id, c.name FROM customers c
+     JOIN orders o ON o.customer_id = c.id AND o.status = 'active'
+     WHERE c.status = 'active' ORDER BY c.name ASC`
+  );
+}
+
 export async function addOrder(
   db: SQLite.SQLiteDatabase,
   customer_id: number,
@@ -347,9 +420,13 @@ export async function softDeleteOrder(
 
 export async function getTransactionsByCustomer(
   db: SQLite.SQLiteDatabase, customerId: number,
-): Promise<Transaction[]> {
-  return db.getAllAsync<Transaction>(
-    `SELECT * FROM transactions WHERE customer_id = ? AND status = 'active' ORDER BY date DESC`,
+): Promise<TransactionWithQuantity[]> {
+  return db.getAllAsync<TransactionWithQuantity>(
+    `SELECT t.*, COALESCE(o.quantity, 0) as quantity
+     FROM transactions t
+     LEFT JOIN orders o ON t.order_id = o.id
+     WHERE t.customer_id = ? AND t.status = 'active'
+     ORDER BY t.date DESC`,
     [customerId]
   );
 }

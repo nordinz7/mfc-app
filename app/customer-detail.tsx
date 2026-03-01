@@ -1,7 +1,7 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
-  Customer, Transaction,
+  Customer, TransactionWithQuantity,
   getCustomerBalance,
   getCustomerById, getTransactionsByCustomer,
   softDeleteTransaction,
@@ -116,7 +116,7 @@ export default function CustomerDetailScreen() {
   const S = makeStyles(colors);
 
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionWithQuantity[]>([]);
   const [balance, setBalance] = useState({ totalDebit: 0, totalCredit: 0, balance: 0 });
   const [refreshing, setRefreshing] = useState(false);
 
@@ -146,7 +146,7 @@ export default function CustomerDetailScreen() {
     router.push({ pathname: '/view-statement' as any, params: { id: String(customer.id) } });
   };
 
-  const handleDeleteTransaction = (txn: Transaction) => {
+  const handleDeleteTransaction = (txn: TransactionWithQuantity) => {
     if (txn.type === 'debit') return; // Debit transactions are deleted via order deletion
     Alert.alert(tr.delete, `Delete this payment of \u20B9${txn.amount.toFixed(2)}?`, [
       { text: tr.cancel, style: 'cancel' },
@@ -159,7 +159,7 @@ export default function CustomerDetailScreen() {
     ]);
   };
 
-  const renderTransaction = ({ item }: { item: Transaction }) => {
+  const renderTransaction = ({ item }: { item: TransactionWithQuantity }) => {
     const isDebit = item.type === 'debit';
     return (
       <TouchableOpacity

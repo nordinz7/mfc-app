@@ -1,20 +1,22 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
-import { CustomerWithBalance, getActiveCustomersWithBalance, getAllCustomersWithBalance, softDeleteCustomer } from '@/services/database';
+import { bulkImportContacts, CustomerWithBalance, getActiveCustomersWithBalance, getAllCustomersWithBalance, softDeleteCustomer } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
+import * as Contacts from 'expo-contacts';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Linking,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Linking,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 function makeStyles(c: AppColors) {
@@ -91,6 +93,16 @@ function makeStyles(c: AppColors) {
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.35, shadowRadius: 8,
     },
+    importBtn: {
+      position: 'absolute', bottom: 24, right: 96,
+      width: 60, height: 60, borderRadius: 30,
+      backgroundColor: c.success,
+      justifyContent: 'center', alignItems: 'center',
+      elevation: 6,
+      shadowColor: c.success,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35, shadowRadius: 8,
+    },
   });
 }
 
@@ -104,6 +116,7 @@ export default function CustomersScreen() {
   const [search, setSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [importingContacts, setImportingContacts] = useState(false);
 
   const load = useCallback(async (all = showAll) => {
     setCustomers(all ? await getAllCustomersWithBalance(db) : await getActiveCustomersWithBalance(db));
@@ -138,6 +151,43 @@ export default function CustomersScreen() {
 
   const handleCall = (phone: string) => {
     Linking.openURL('tel:+' + phone.replace(/\D/g, ''));
+  };
+
+  const handleImportContacts = async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(tr.contactsPermission, tr.contactsPermissionMsg);
+        return;
+      }
+      setImportingContacts(true);
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.PhoneNumbers, Contacts.Fields.Name],
+      });
+      // Extract contacts with phone numbers
+      const contactList: { name: string; phone: string }[] = [];
+      for (const c of data) {
+        if (!c.phoneNumbers?.length) continue;
+        const name = c.name || c.firstName || '';
+        if (!name) continue;
+        for (const ph of c.phoneNumbers) {
+          if (ph.number) {
+            contactList.push({ name, phone: ph.number });
+          }
+        }
+      }
+      const imported = await bulkImportContacts(db, contactList);
+      setImportingContacts(false);
+      if (imported > 0) {
+        Alert.alert(tr.importSuccess, tr.importSuccessMsg(imported));
+        load(showAll);
+      } else {
+        Alert.alert(tr.importSuccess, tr.importNone);
+      }
+    } catch {
+      setImportingContacts(false);
+      Alert.alert('Error', 'Could not import contacts.');
+    }
   };
 
   const renderItem = ({ item }: { item: CustomerWithBalance }) => {
@@ -230,6 +280,17 @@ export default function CustomersScreen() {
           </View>
         }
       />
+      <TouchableOpacity
+        style={S.importBtn}
+        onPress={handleImportContacts}
+        disabled={importingContacts}
+        accessibilityLabel={tr.importContacts}
+      >
+        {importingContacts
+          ? <ActivityIndicator color="#FFFFFF" />
+          : <MaterialIcons name="contacts" size={28} color="#FFFFFF" />
+        }
+      </TouchableOpacity>
       <TouchableOpacity style={S.fab} onPress={() => router.push('/add-customer')} accessibilityLabel={tr.addCustomer}>
         <MaterialIcons name="person-add" size={30} color="#FFFFFF" />
       </TouchableOpacity>

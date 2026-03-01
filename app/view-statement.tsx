@@ -6,7 +6,7 @@ import {
   getCustomerById,
   getTransactionsByCustomer,
   insertStatement,
-  Transaction,
+  TransactionWithQuantity,
 } from '@/services/database';
 import { shareStatementImage } from '@/utils/whatsapp';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -86,7 +86,7 @@ export default function ViewStatementScreen() {
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [customer, setCustomer] = useState<{ name: string; place: string; phone_number: string } | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionWithQuantity[]>([]);
   const [balance, setBalance] = useState({ totalDebit: 0, totalCredit: 0, balance: 0 });
 
   const customerId = Number(id);
@@ -164,7 +164,7 @@ export default function ViewStatementScreen() {
               companyPlace={companyPlace}
               customerName={customer.name}
               customerPlace={customer.place}
-              date={format(new Date(), 'dd MMM yyyy')}
+              date={format(new Date(), 'dd/MM/yyyy')}
               transactions={transactions}
               totalOrders={balance.totalDebit}
               totalPaid={balance.totalCredit}

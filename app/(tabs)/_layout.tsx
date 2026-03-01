@@ -31,9 +31,8 @@ export default function TabLayout() {
           fontSize: FontSizes.xs,
           fontWeight: '600',
         },
-        headerStyle: { backgroundColor: colors.headerBg },
-        headerTintColor: colors.headerText,
-        headerTitleStyle: { fontSize: 20, fontWeight: '700' },
+        headerShown: false,
+        sceneStyle: { paddingTop: insets.top },
       }}
     >
       <Tabs.Screen

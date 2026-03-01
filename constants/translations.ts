@@ -27,6 +27,14 @@ const en = {
   thisMonth: 'This Month',
   allOrders: 'All Orders',
   past6Days: 'Past 6 Days',
+  filterByDate: 'Filter by Date',
+  filterByCustomer: 'Filter by Customer',
+  allCustomers: 'All Customers',
+  allDates: 'All Dates',
+  selectDate: 'Select Date',
+  selectCustomer: 'Select Customer',
+  pickDate: 'Pick a date...',
+  customDate: 'Custom Date',
   sendInvoice: 'Send Invoice',
   deleteOrder: 'Delete Order',
   deleteOrderMsg: (name: string) => `Delete this order for ${name}? This cannot be undone.`,
@@ -148,6 +156,14 @@ const en = {
   companyPlace: 'Company Place',
   companyNamePlaceholder: 'e.g. MFC FOOD PRODUCT',
   companyPlacePlaceholder: 'e.g. ADIRAMPATTINAM',
+  // Import contacts
+  importContacts: 'Import from Contacts',
+  importing: 'Importing...',
+  importSuccess: 'Import Complete',
+  importSuccessMsg: (count: number) => `Imported ${count} new customer${count === 1 ? '' : 's'} from contacts.`,
+  importNone: 'No new contacts to import. All phone numbers already exist.',
+  contactsPermission: 'Contacts Permission',
+  contactsPermissionMsg: 'Please allow access to your contacts to import them.',
 };
 
 const ta: typeof en = {
@@ -174,6 +190,14 @@ const ta: typeof en = {
   thisMonth: 'இந்த மாதம்',
   allOrders: 'அனைத்து ஆர்டர்கள்',
   past6Days: 'கடந்த 6 நாட்கள்',
+  filterByDate: 'தேதி வடிகட்டி',
+  filterByCustomer: 'வாடிக்கையாளர் வடிகட்டி',
+  allCustomers: 'அனைத்து வாடிக்கையாளர்கள்',
+  allDates: 'அனைத்து தேதிகள்',
+  selectDate: 'தேதி தேர்வு',
+  selectCustomer: 'வாடிக்கையாளர் தேர்வு',
+  pickDate: 'தேதி தேர்ந்தெடு...',
+  customDate: 'தனிப்பயன் தேதி',
   sendInvoice: 'விலைப்பட்டியல் அனுப்பு',
   deleteOrder: 'ஆர்டரை நீக்கு',
   deleteOrderMsg: (name: string) => `${name} இன் ஆர்டரை நீக்கவா?`,
@@ -286,6 +310,14 @@ const ta: typeof en = {
   companyPlace: 'நிறுவன இடம்',
   companyNamePlaceholder: 'எ.கா. MFC FOOD PRODUCT',
   companyPlacePlaceholder: 'எ.கா. ADIRAMPATTINAM',
+  // Import contacts
+  importContacts: 'தொடர்புகளிலிருந்து இறக்குமதி',
+  importing: 'இறக்குமதி செய்கிறது...',
+  importSuccess: 'இறக்குமதி முடிந்தது',
+  importSuccessMsg: (count: number) => `${count} புதிய வாடிக்கையாளர்கள் தொடர்புகளிலிருந்து இறக்குமதி செய்யப்பட்டனர்.`,
+  importNone: 'புதிய தொடர்புகள் இல்லை. அனைத்து தொலைபேசி எண்களும் ஏற்கனவே உள்ளன.',
+  contactsPermission: 'தொடர்பு அனுமதி',
+  contactsPermissionMsg: 'தொடர்புகளை இறக்குமதி செய்ய அனுமதி வழங்கவும்.',
 };
 
 export const translations = { en, ta };
