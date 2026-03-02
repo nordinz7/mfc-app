@@ -9,15 +9,15 @@ import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 const DRAFT_KEY = '@mfc_bulk_draft';
@@ -310,7 +310,7 @@ export default function BulkOrdersScreen() {
             const count = await bulkAddOrders(db, entries, description, orderDate.toISOString());
             await clearBulkDraft();
             Alert.alert(tr.bulkOrdersSaved, tr.bulkOrdersSavedMsg(count), [
-              { text: 'OK', onPress: () => router.back() },
+              { text: 'OK', onPress: () => router.replace({ pathname: '/(tabs)/orders', params: { filterDate: orderDate.toISOString().slice(0, 10) } }) },
             ]);
           } catch {
             Alert.alert('Error', tr.couldNotSave);

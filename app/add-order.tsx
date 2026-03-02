@@ -3,20 +3,20 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { addOrder, Customer, getActiveCustomers } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { addDays, format } from 'date-fns';
+import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text, TextInput, TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text, TextInput, TouchableOpacity,
+    View,
 } from 'react-native';
 
 function makeStyles(c: AppColors) {
@@ -86,7 +86,7 @@ export default function AddOrderScreen() {
   const [description, setDescription]       = useState('Kuboos');
   const [saving, setSaving]                 = useState(false);
 
-  const [orderDate, setOrderDate]           = useState<Date>(addDays(new Date(), 1));
+  const [orderDate, setOrderDate]           = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const onDateChange = (_event: DateTimePickerEvent, date?: Date) => {

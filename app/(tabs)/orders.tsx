@@ -2,29 +2,29 @@ import { getBulkDraftCount } from '@/app/bulk-orders';
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
-  deleteOrder,
-  getCustomersWithOrders,
-  getOrdersByDateRange,
-  OrderWithCustomer,
+    deleteOrder,
+    getCustomersWithOrders,
+    getOrdersByDateRange,
+    OrderWithCustomer,
 } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 type FilterMode = 'date' | 'customer';
@@ -196,11 +196,18 @@ function makeStyles(c: AppColors) {
 export default function OrdersScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
+  const params = useLocalSearchParams<{ filterDate?: string }>();
   const { colors, tr } = useSettings();
   const S = makeStyles(colors);
 
   const [orders, setOrders] = useState<OrderWithCustomer[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (params.filterDate) {
+      const d = new Date(params.filterDate);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [filter, setFilter] = useState<FilterMode>('date');
   const [refreshing, setRefreshing] = useState(false);
@@ -211,6 +218,18 @@ export default function OrdersScreen() {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [draftCount, setDraftCount] = useState(0);
+
+  // Update date when navigating with filterDate param
+  useEffect(() => {
+    if (params.filterDate) {
+      const d = new Date(params.filterDate);
+      if (!isNaN(d.getTime())) {
+        setSelectedDate(d);
+        setFilter('date');
+        setSelectedCustomerId(null);
+      }
+    }
+  }, [params.filterDate]);
 
   const loadDropdownData = useCallback(async () => {
     const customers = await getCustomersWithOrders(db);
