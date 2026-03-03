@@ -92,6 +92,16 @@ function makeStyles(c: AppColors) {
     emptyWrap:    { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
     emptyText:    { fontSize: FontSizes.xl, fontWeight: '600', color: c.textSecondary, marginTop: Spacing.lg },
     emptySubText: { fontSize: FontSizes.md, color: c.textMuted, marginTop: Spacing.sm },
+    fab: {
+      position: 'absolute', bottom: 24, right: 24,
+      width: 60, height: 60, borderRadius: 30,
+      backgroundColor: c.primary,
+      justifyContent: 'center', alignItems: 'center',
+      elevation: 6,
+      shadowColor: c.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35, shadowRadius: 8,
+    },
     // Modal / dropdown styles
     modalOverlay: {
       flex: 1,
@@ -363,6 +373,10 @@ export default function TransactionsScreen() {
           </View>
         }
       />
+
+      <TouchableOpacity style={S.fab} onPress={() => router.push('/add-payment')} accessibilityLabel={tr.addPayment}>
+        <MaterialIcons name="add" size={34} color="#FFFFFF" />
+      </TouchableOpacity>
 
       {/* Customer picker modal with search */}
       <Modal visible={showCustomerModal} transparent animationType="slide" onRequestClose={() => { setShowCustomerModal(false); setCustomerSearch(''); }}>
