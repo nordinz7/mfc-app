@@ -1,8 +1,8 @@
-import { DateStrip } from '@/components/DateStrip';
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
     deleteTransaction,
+    getAllTransactionsWithCustomer,
     getCustomersWithOrders,
     getTransactionsByDateRange,
     TransactionWithCustomer,
@@ -32,42 +32,26 @@ interface DropdownItem { id: string; label: string }
 function makeStyles(c: AppColors) {
   return StyleSheet.create({
     container:    { flex: 1, backgroundColor: c.background },
-    dateStripWrap: {
-      backgroundColor: c.card,
-      borderBottomWidth: 1,
-      borderBottomColor: c.border,
-      paddingVertical: Spacing.xs,
-    },
     filterRow: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: Spacing.md,
-      paddingTop: Spacing.xs,
-      paddingBottom: Spacing.sm,
+      paddingVertical: Spacing.sm,
       gap: Spacing.sm,
       backgroundColor: c.card,
       borderBottomWidth: 1,
       borderBottomColor: c.border,
     },
-    filterLabel: {
-      fontSize: FontSizes.sm,
-      fontWeight: '700',
-      color: c.textMuted,
-      flex: 1,
-    },
-    calBtn: {
-      padding: 4,
-      borderRadius: Radius.sm,
-    },
-    customerChip: {
+    filterChip: {
       flexDirection: 'row', alignItems: 'center', gap: 4,
       paddingHorizontal: Spacing.md, paddingVertical: 6,
       borderRadius: 20,
       backgroundColor: c.filterInactive,
     },
-    customerChipActive: { backgroundColor: c.primary },
-    customerChipText: { fontSize: FontSizes.sm, fontWeight: '700', color: c.textSecondary },
-    customerChipTextActive: { color: '#FFFFFF' },
+    filterChipActive: { backgroundColor: c.primary },
+    filterChipText: { fontSize: FontSizes.sm, fontWeight: '700', color: c.textSecondary },
+    filterChipTextActive: { color: '#FFFFFF' },
+    filterSpacer: { flex: 1 },
     summary: {
       flexDirection: 'row', justifyContent: 'space-between',
       paddingHorizontal: Spacing.lg, paddingVertical: 6,
@@ -173,7 +157,7 @@ export default function TransactionsScreen() {
   const S = makeStyles(colors);
 
   const [transactions, setTransactions] = useState<TransactionWithCustomer[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -192,9 +176,13 @@ export default function TransactionsScreen() {
   }, [db]);
 
   const load = useCallback(async () => {
-    // Always filter by selected date; customer is an AND filter on top
-    const dateStr = selectedDate.toISOString().slice(0, 10);
-    let results = await getTransactionsByDateRange(db, dateStr, dateStr);
+    let results: TransactionWithCustomer[];
+    if (selectedDate) {
+      const dateStr = selectedDate.toISOString().slice(0, 10);
+      results = await getTransactionsByDateRange(db, dateStr, dateStr);
+    } else {
+      results = await getAllTransactionsWithCustomer(db);
+    }
     if (selectedCustomerId) {
       results = results.filter(t => String(t.customer_id) === selectedCustomerId);
     }
@@ -217,6 +205,8 @@ export default function TransactionsScreen() {
     if (Platform.OS === 'android') setShowDatePicker(false);
     if (date) setSelectedDate(date);
   };
+
+  const dateChipLabel = selectedDate ? format(selectedDate, 'dd MMM yyyy') : null;
 
   // Customer is an AND filter alongside date
   const handleCustomerSelect = (custId: string) => {
@@ -282,24 +272,36 @@ export default function TransactionsScreen() {
 
   return (
     <View style={S.container}>
-      {/* Swipeable date strip */}
-      <View style={S.dateStripWrap}>
-        <DateStrip value={selectedDate} onChange={setSelectedDate} colors={colors} />
-      </View>
-
-      {/* Filter row: date label + calendar jump + customer AND chip */}
+      {/* Filter row: date chip + customer chip */}
       <View style={S.filterRow}>
-        <MaterialIcons name="calendar-today" size={16} color={colors.primary} />
-        <Text style={S.filterLabel}>{format(selectedDate, 'dd MMM yyyy, EEE')}</Text>
-
-        {/* Jump to date via native picker */}
-        <TouchableOpacity style={S.calBtn} onPress={() => setShowDatePicker(true)}>
-          <MaterialIcons name="today" size={22} color={colors.textMuted} />
+        {/* Date filter chip */}
+        <TouchableOpacity
+          style={[S.filterChip, selectedDate ? S.filterChipActive : undefined]}
+          onPress={() => {
+            if (selectedDate) {
+              setSelectedDate(null);
+            } else {
+              setShowDatePicker(true);
+            }
+          }}
+        >
+          <MaterialIcons
+            name={selectedDate ? 'close' : 'calendar-today'}
+            size={16}
+            color={selectedDate ? '#FFFFFF' : colors.textSecondary}
+          />
+          {dateChipLabel ? (
+            <Text style={[S.filterChipText, S.filterChipTextActive]} numberOfLines={1}>
+              {dateChipLabel}
+            </Text>
+          ) : (
+            <Text style={S.filterChipText}>{tr.selectDate}</Text>
+          )}
         </TouchableOpacity>
 
-        {/* Customer AND-filter chip */}
+        {/* Customer filter chip */}
         <TouchableOpacity
-          style={[S.customerChip, selectedCustomerId ? S.customerChipActive : undefined]}
+          style={[S.filterChip, selectedCustomerId ? S.filterChipActive : undefined]}
           onPress={() => {
             if (selectedCustomerId) {
               setSelectedCustomerId(null);
@@ -314,18 +316,20 @@ export default function TransactionsScreen() {
             color={selectedCustomerId ? '#FFFFFF' : colors.textSecondary}
           />
           {customerChipLabel ? (
-            <Text style={[S.customerChipText, S.customerChipTextActive]} numberOfLines={1}>
+            <Text style={[S.filterChipText, S.filterChipTextActive]} numberOfLines={1}>
               {customerChipLabel}
             </Text>
           ) : (
-            <MaterialIcons name="arrow-drop-down" size={18} color={colors.textSecondary} />
+            <Text style={S.filterChipText}>{tr.selectCustomer}</Text>
           )}
         </TouchableOpacity>
+
+        <View style={S.filterSpacer} />
       </View>
 
       {showDatePicker && (
         <DateTimePicker
-          value={selectedDate}
+          value={selectedDate ?? new Date()}
           mode="date"
           display={Platform.OS === 'ios' ? 'inline' : 'default'}
           onChange={onDateChange}
