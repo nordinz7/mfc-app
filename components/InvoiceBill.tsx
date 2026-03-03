@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 export interface InvoiceBillProps {
   companyName?: string;
   companyPlace?: string;
+  companyPhone?: string;
   order: OrderWithCustomer;
   lang?: 'en' | 'ta';
 }
@@ -42,7 +43,7 @@ const LABELS = {
 };
 
 const InvoiceBill = forwardRef<View, InvoiceBillProps>(
-  ({ companyName, companyPlace, order, lang = 'en' }, ref) => {
+  ({ companyName, companyPlace, companyPhone, order, lang = 'en' }, ref) => {
     const L = LABELS[lang];
     const dateStr = format(new Date(order.date), 'dd/MM/yyyy');
 
@@ -56,6 +57,7 @@ const InvoiceBill = forwardRef<View, InvoiceBillProps>(
         <View style={S.companyBlock}>
           <Text style={S.companyName}>{companyName || L.company}</Text>
           <Text style={S.companyPlace}>{companyPlace || L.place}</Text>
+          {companyPhone ? <Text style={S.companyPhone}>☎ {companyPhone}</Text> : null}
         </View>
 
         {/* ─── Customer & Date ────────────────────── */}
@@ -174,6 +176,13 @@ const S = StyleSheet.create({
     fontWeight: '700',
     color: '#1A237E',
     textAlign: 'center',
+  },
+  companyPhone: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 2,
   },
   metaRow: {
     flexDirection: 'row',

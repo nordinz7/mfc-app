@@ -66,7 +66,7 @@ function makeStyles(c: AppColors) {
 }
 
 export default function ViewInvoiceScreen() {
-  const { colors, tr, lang, companyName, companyPlace } = useSettings();
+  const { colors, tr, lang, companyName, companyPlace, companyPhone } = useSettings();
   const S = makeStyles(colors);
   const router = useRouter();
 
@@ -128,6 +128,7 @@ export default function ViewInvoiceScreen() {
             <InvoiceBill
               companyName={companyName}
               companyPlace={companyPlace}
+              companyPhone={companyPhone}
               order={order}
               lang={lang}
             />

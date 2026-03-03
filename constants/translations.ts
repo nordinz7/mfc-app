@@ -182,8 +182,10 @@ const en = {
   companyDetails: 'Company Details',
   companyName: 'Company Name',
   companyPlace: 'Company Place',
+  companyPhone: 'Contact Number',
   companyNamePlaceholder: 'e.g. MFC FOOD PRODUCT',
   companyPlacePlaceholder: 'e.g. ADIRAMPATTINAM',
+  companyPhonePlaceholder: 'e.g. 9876543210',
   // Import contacts
   importContacts: 'Import from Contacts',
   importing: 'Importing...',
@@ -421,8 +423,10 @@ const ta: typeof en = {
   companyDetails: 'நிறுவன விவரங்கள்',
   companyName: 'நிறுவனத்தின் பெயர்',
   companyPlace: 'நிறுவன இடம்',
+  companyPhone: 'தொடர்பு எண்',
   companyNamePlaceholder: 'எ.கா. MFC FOOD PRODUCT',
   companyPlacePlaceholder: 'எ.கா. ADIRAMPATTINAM',
+  companyPhonePlaceholder: 'எ.கா. 9876543210',
   // Import contacts
   importContacts: 'தொடர்புகளிலிருந்து இறக்குமதி',
   importing: 'இறக்குமதி செய்கிறது...',

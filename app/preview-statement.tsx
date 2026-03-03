@@ -36,7 +36,7 @@ function makeStyles(c: AppColors) {
 }
 
 export default function PreviewStatementScreen() {
-  const { colors, lang, companyName, companyPlace } = useSettings();
+  const { colors, lang, companyName, companyPlace, companyPhone } = useSettings();
   const S = makeStyles(colors);
   const sampleTxns = getSampleTransactions();
 
@@ -46,6 +46,7 @@ export default function PreviewStatementScreen() {
         <StatementBill
           companyName={companyName}
           companyPlace={companyPlace}
+          companyPhone={companyPhone}
           customerName="Rahul Kumar"
           customerPlace="Chennai"
           date={format(new Date(), 'dd/MM/yyyy')}

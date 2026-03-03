@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 export interface StatementBillProps {
   companyName?: string;
   companyPlace?: string;
+  companyPhone?: string;
   customerName: string;
   customerPlace: string;
   date: string;
@@ -64,6 +65,7 @@ const StatementBill = forwardRef<View, StatementBillProps>(
     {
       companyName,
       companyPlace,
+      companyPhone,
       customerName,
       customerPlace,
       date,
@@ -90,6 +92,7 @@ const StatementBill = forwardRef<View, StatementBillProps>(
         <View style={S.companyBlock}>
           <Text style={S.companyName}>{companyName || L.company}</Text>
           <Text style={S.companyPlace}>{companyPlace || L.place}</Text>
+          {companyPhone ? <Text style={S.companyPhone}>☎ {companyPhone}</Text> : null}
         </View>
 
         {/* ─── Customer & Date ────────────────────── */}
@@ -246,6 +249,13 @@ const S = StyleSheet.create({
     fontWeight: '700',
     color: '#1A237E',
     textAlign: 'center',
+  },
+  companyPhone: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 2,
   },
   // Meta
   metaRow: {

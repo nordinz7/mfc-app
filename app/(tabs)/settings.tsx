@@ -64,7 +64,7 @@ function makeStyles(c: AppColors) {
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
-  const { colors, tr, isDark, toggleTheme, lang, setLang, companyName, setCompanyName, companyPlace, setCompanyPlace, defaultOrderDescription, setDefaultOrderDescription } = useSettings();
+  const { colors, tr, isDark, toggleTheme, lang, setLang, companyName, setCompanyName, companyPlace, setCompanyPlace, companyPhone, setCompanyPhone, defaultOrderDescription, setDefaultOrderDescription } = useSettings();
   const S = makeStyles(colors);
 
   const [backupLoading, setBackupLoading] = useState(false);
@@ -214,7 +214,7 @@ export default function SettingsScreen() {
               placeholderTextColor={colors.textMuted}
             />
           </View>
-          <View style={[S.row, S.rowLast]}>
+          <View style={S.row}>
             <MaterialIcons name="location-on" size={24} color={colors.primary} style={S.rowIcon} />
             <TextInput
               style={S.companyInputFull}
@@ -222,6 +222,17 @@ export default function SettingsScreen() {
               onChangeText={setCompanyPlace}
               placeholder={tr.companyPlacePlaceholder}
               placeholderTextColor={colors.textMuted}
+            />
+          </View>
+          <View style={[S.row, S.rowLast]}>
+            <MaterialIcons name="phone" size={24} color={colors.primary} style={S.rowIcon} />
+            <TextInput
+              style={S.companyInputFull}
+              value={companyPhone}
+              onChangeText={setCompanyPhone}
+              placeholder={tr.companyPhonePlaceholder}
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
             />
           </View>
         </View>

@@ -79,7 +79,7 @@ function makeStyles(c: AppColors) {
 export default function ViewStatementScreen() {
   const db = useSQLiteContext();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors, tr, lang, companyName, companyPlace } = useSettings();
+  const { colors, tr, lang, companyName, companyPlace, companyPhone } = useSettings();
   const S = makeStyles(colors);
 
   const billRef = useRef<ViewShot>(null);
@@ -162,6 +162,7 @@ export default function ViewStatementScreen() {
             <StatementBill
               companyName={companyName}
               companyPlace={companyPlace}
+              companyPhone={companyPhone}
               customerName={customer.name}
               customerPlace={customer.place}
               date={format(new Date(), 'dd/MM/yyyy')}
