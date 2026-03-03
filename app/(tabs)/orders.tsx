@@ -1,4 +1,5 @@
 import { getBulkDraftCount } from '@/app/bulk-orders';
+import { DateStrip } from '@/components/DateStrip';
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
@@ -28,34 +29,41 @@ import {
   View,
 } from 'react-native';
 
-type FilterMode = 'date' | 'customer';
-
 interface DropdownItem { id: string; label: string }
 
 function makeStyles(c: AppColors) {
   return StyleSheet.create({
     container:    { flex: 1, backgroundColor: c.background },
-    topBar: {
+    dateStripWrap: {
       backgroundColor: c.card,
-      paddingHorizontal: Spacing.md,
-      paddingTop: Spacing.sm,
-      paddingBottom: Spacing.sm,
       borderBottomWidth: 1,
       borderBottomColor: c.border,
+      paddingVertical: Spacing.xs,
+    },
+    filterRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.xs,
+      paddingBottom: Spacing.sm,
       gap: Spacing.sm,
+      backgroundColor: c.card,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
     },
-    dateBtn: {
+    filterLabel: {
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+      color: c.textMuted,
       flex: 1,
-      flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-      backgroundColor: c.inputBg, borderWidth: 1.5, borderColor: c.border,
-      borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: 8,
     },
-    dateBtnText: { fontSize: FontSizes.md, fontWeight: '600', color: c.text, flex: 1 },
+    calBtn: {
+      padding: 4,
+      borderRadius: Radius.sm,
+    },
     customerChip: {
       flexDirection: 'row', alignItems: 'center', gap: 4,
-      paddingHorizontal: Spacing.lg, paddingVertical: 8,
+      paddingHorizontal: Spacing.md, paddingVertical: 6,
       borderRadius: 20,
       backgroundColor: c.filterInactive,
     },
@@ -210,10 +218,9 @@ export default function OrdersScreen() {
     return new Date();
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [filter, setFilter] = useState<FilterMode>('date');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Customer filter
+  // Customer filter (AND — combined with date)
   const [customerOptions, setCustomerOptions] = useState<DropdownItem[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -224,11 +231,7 @@ export default function OrdersScreen() {
   useEffect(() => {
     if (params.filterDate) {
       const d = new Date(params.filterDate);
-      if (!isNaN(d.getTime())) {
-        setSelectedDate(d);
-        setFilter('date');
-        setSelectedCustomerId(null);
-      }
+      if (!isNaN(d.getTime())) setSelectedDate(d);
     }
   }, [params.filterDate]);
 
@@ -241,14 +244,14 @@ export default function OrdersScreen() {
   }, [db]);
 
   const load = useCallback(async () => {
-    if (filter === 'customer' && selectedCustomerId) {
-      const allOrders = await getOrdersByDateRange(db, '2000-01-01', '2099-12-31');
-      return setOrders(allOrders.filter(o => String(o.customer_id) === selectedCustomerId));
-    }
-    // date mode
+    // Always filter by selected date; customer is an AND filter on top
     const dateStr = selectedDate.toISOString().slice(0, 10);
-    setOrders(await getOrdersByDateRange(db, dateStr, dateStr));
-  }, [db, filter, selectedDate, selectedCustomerId]);
+    let results = await getOrdersByDateRange(db, dateStr, dateStr);
+    if (selectedCustomerId) {
+      results = results.filter(o => String(o.customer_id) === selectedCustomerId);
+    }
+    setOrders(results);
+  }, [db, selectedDate, selectedCustomerId]);
 
   useFocusEffect(useCallback(() => {
     loadDropdownData();
@@ -265,20 +268,14 @@ export default function OrdersScreen() {
 
   const onDateChange = (_event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') setShowDatePicker(false);
-    if (date) {
-      setSelectedDate(date);
-      setSelectedCustomerId(null);
-      setFilter('date');
-    }
+    if (date) setSelectedDate(date);
   };
 
+  // Customer is an AND filter alongside date
   const handleCustomerSelect = (custId: string) => {
     setSelectedCustomerId(custId);
-    setFilter('customer');
     setShowCustomerModal(false);
-    getOrdersByDateRange(db, '2000-01-01', '2099-12-31').then(all =>
-      setOrders(all.filter(o => String(o.customer_id) === custId))
-    );
+    setCustomerSearch('');
   };
 
   const handleDelete = (order: OrderWithCustomer) => {
@@ -318,8 +315,7 @@ export default function OrdersScreen() {
   const displayed = orders;
   const totalAmount = displayed.reduce((s, o) => s + o.amount, 0);
 
-  const isCustomerFilter = filter === 'customer' && selectedCustomerId;
-  const customerChipLabel = isCustomerFilter
+  const customerChipLabel = selectedCustomerId
     ? customerOptions.find(c => c.id === selectedCustomerId)?.label ?? null
     : null;
 
@@ -357,37 +353,42 @@ export default function OrdersScreen() {
 
   return (
     <View style={S.container}>
-      <View style={S.topBar}>
-        {/* Date selector */}
-        <TouchableOpacity style={S.dateBtn} onPress={() => setShowDatePicker(true)}>
-          <MaterialIcons name="calendar-today" size={20} color={colors.primary} />
-          <Text style={S.dateBtnText}>{format(selectedDate, 'dd MMM yyyy, EEE')}</Text>
-          <MaterialIcons name="arrow-drop-down" size={22} color={colors.textSecondary} />
+      {/* Swipeable date strip */}
+      <View style={S.dateStripWrap}>
+        <DateStrip value={selectedDate} onChange={setSelectedDate} colors={colors} />
+      </View>
+
+      {/* Filter row: date label + calendar jump + customer AND chip */}
+      <View style={S.filterRow}>
+        <MaterialIcons name="calendar-today" size={16} color={colors.primary} />
+        <Text style={S.filterLabel}>{format(selectedDate, 'dd MMM yyyy, EEE')}</Text>
+
+        {/* Jump to date via native picker */}
+        <TouchableOpacity style={S.calBtn} onPress={() => setShowDatePicker(true)}>
+          <MaterialIcons name="today" size={22} color={colors.textMuted} />
         </TouchableOpacity>
 
-        {/* Customer filter chip */}
+        {/* Customer AND-filter chip */}
         <TouchableOpacity
-          style={[S.customerChip, isCustomerFilter && S.customerChipActive]}
+          style={[S.customerChip, selectedCustomerId ? S.customerChipActive : undefined]}
           onPress={() => {
-            if (isCustomerFilter) {
+            if (selectedCustomerId) {
               setSelectedCustomerId(null);
-              setFilter('date');
             } else {
               setShowCustomerModal(true);
             }
           }}
         >
           <MaterialIcons
-            name={isCustomerFilter ? 'close' : 'person'}
+            name={selectedCustomerId ? 'close' : 'person'}
             size={16}
-            color={isCustomerFilter ? '#FFFFFF' : colors.textSecondary}
+            color={selectedCustomerId ? '#FFFFFF' : colors.textSecondary}
           />
-          {customerChipLabel && (
+          {customerChipLabel ? (
             <Text style={[S.customerChipText, S.customerChipTextActive]} numberOfLines={1}>
               {customerChipLabel}
             </Text>
-          )}
-          {!isCustomerFilter && (
+          ) : (
             <MaterialIcons name="arrow-drop-down" size={18} color={colors.textSecondary} />
           )}
         </TouchableOpacity>
@@ -468,7 +469,7 @@ export default function OrdersScreen() {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[S.modalItem, item.id === selectedCustomerId && S.modalItemActive]}
-                  onPress={() => { handleCustomerSelect(item.id); setCustomerSearch(''); }}
+                  onPress={() => handleCustomerSelect(item.id)}
                 >
                   <Text style={[
                     S.modalItemText,
