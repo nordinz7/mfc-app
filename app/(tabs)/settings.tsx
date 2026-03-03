@@ -64,7 +64,7 @@ function makeStyles(c: AppColors) {
 export default function SettingsScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
-  const { colors, tr, isDark, toggleTheme, lang, setLang, companyName, setCompanyName, companyPlace, setCompanyPlace } = useSettings();
+  const { colors, tr, isDark, toggleTheme, lang, setLang, companyName, setCompanyName, companyPlace, setCompanyPlace, defaultOrderDescription, setDefaultOrderDescription } = useSettings();
   const S = makeStyles(colors);
 
   const [backupLoading, setBackupLoading] = useState(false);
@@ -221,6 +221,23 @@ export default function SettingsScreen() {
               value={companyPlace}
               onChangeText={setCompanyPlace}
               placeholder={tr.companyPlacePlaceholder}
+              placeholderTextColor={colors.textMuted}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Order Defaults */}
+      <View style={S.section}>
+        <Text style={S.sectionTitle}>{tr.orderDefaults}</Text>
+        <View style={S.card}>
+          <View style={[S.row, S.rowLast]}>
+            <MaterialIcons name="edit" size={24} color={colors.primary} style={S.rowIcon} />
+            <TextInput
+              style={S.companyInputFull}
+              value={defaultOrderDescription}
+              onChangeText={setDefaultOrderDescription}
+              placeholder={tr.defaultOrderDescPlaceholder}
               placeholderTextColor={colors.textMuted}
             />
           </View>

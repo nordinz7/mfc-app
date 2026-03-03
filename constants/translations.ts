@@ -240,6 +240,10 @@ const en = {
   collectionsSummary: 'Collections',
   quantitySummary: 'Quantity',
   packetsShort: 'pkt',
+  // Order defaults
+  orderDefaults: 'Order Defaults',
+  defaultOrderDesc: 'Default Item Name',
+  defaultOrderDescPlaceholder: 'e.g. Kuboos',
 };
 
 const ta: typeof en = {
@@ -470,6 +474,10 @@ const ta: typeof en = {
   collectionsSummary: 'வசூல்',
   quantitySummary: 'அளவு',
   packetsShort: 'பாக்கெட்',
+  // Order defaults
+  orderDefaults: 'ஆர்டர் இயல்புநிலைகள்',
+  defaultOrderDesc: 'இயல்பு பொருள் பெயர்',
+  defaultOrderDescPlaceholder: 'எ.கா. Kuboos',
 };
 
 export const translations = { en, ta };

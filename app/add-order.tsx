@@ -8,15 +8,15 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text, TextInput, TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text, TextInput, TouchableOpacity,
+  View,
 } from 'react-native';
 
 function makeStyles(c: AppColors) {
@@ -75,7 +75,7 @@ function makeStyles(c: AppColors) {
 export default function AddOrderScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
-  const { colors, tr } = useSettings();
+  const { colors, tr, defaultOrderDescription } = useSettings();
   const S = makeStyles(colors);
   const params = useLocalSearchParams<{ defaultDate?: string }>();
 
@@ -84,7 +84,7 @@ export default function AddOrderScreen() {
   const [showPicker, setShowPicker]         = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [quantity, setQuantity]             = useState('');
-  const [description, setDescription]       = useState('Kuboos');
+  const [description, setDescription]       = useState(defaultOrderDescription || 'Kuboos');
   const [saving, setSaving]                 = useState(false);
 
   const [orderDate, setOrderDate]           = useState<Date>(() => {
