@@ -7,7 +7,8 @@ export interface InvoiceBillProps {
   companyName?: string;
   companyPlace?: string;
   companyPhone?: string;
-  order: OrderWithCustomer;
+  order?: OrderWithCustomer;
+  orders?: OrderWithCustomer[];
   lang?: 'en' | 'ta';
 }
 
@@ -43,9 +44,14 @@ const LABELS = {
 };
 
 const InvoiceBill = forwardRef<View, InvoiceBillProps>(
-  ({ companyName, companyPlace, companyPhone, order, lang = 'en' }, ref) => {
+  ({ companyName, companyPlace, companyPhone, order, orders, lang = 'en' }, ref) => {
     const L = LABELS[lang];
-    const dateStr = format(new Date(order.date), 'dd/MM/yyyy');
+    const allOrders = orders ?? (order ? [order] : []);
+    const firstOrder = allOrders[0];
+    if (!firstOrder) return null;
+
+    const dateStr = format(new Date(firstOrder.date), 'dd/MM/yyyy');
+    const totalAmount = allOrders.reduce((s, o) => s + o.amount, 0);
 
     return (
       <View ref={ref} style={S.container} collapsable={false}>
@@ -65,10 +71,10 @@ const InvoiceBill = forwardRef<View, InvoiceBillProps>(
           <View style={S.metaLeft}>
             <Text style={S.metaLabel}>
               {L.to}:{' '}
-              <Text style={S.metaValue}>{order.customer_name}</Text>
+              <Text style={S.metaValue}>{firstOrder.customer_name}</Text>
             </Text>
-            {order.customer_place ? (
-              <Text style={S.metaLabelSmall}>{order.customer_place}</Text>
+            {firstOrder.customer_place ? (
+              <Text style={S.metaLabelSmall}>{firstOrder.customer_place}</Text>
             ) : null}
           </View>
           <View style={S.metaRight}>
@@ -89,19 +95,22 @@ const InvoiceBill = forwardRef<View, InvoiceBillProps>(
           <Text style={[S.thText, S.colAmt, { textAlign: 'right' }]}>{L.amount}</Text>
         </View>
 
-        {/* ─── Table Row ─────────────────────────── */}
-        <View style={[S.tableRow, S.rowEven]}>
-          <Text style={[S.tdText, S.colNo]}>1</Text>
-          <Text style={[S.tdText, S.colDesc]} numberOfLines={2}>
-            {order.description}
-          </Text>
-          <Text style={[S.tdText, S.colQty, { textAlign: 'center' }]}>
-            {order.quantity > 0 ? Math.round(order.quantity) : '-'}
-          </Text>
-          <Text style={[S.tdText, S.colAmt, { textAlign: 'right', fontWeight: '700' }]}>
-            ₹{Math.round(order.amount)}
-          </Text>
-        </View>
+        {/* ─── Table Rows ────────────────────────── */}
+        {allOrders.map((o, idx) => (
+          <View key={o.id || idx} style={[S.tableRow, idx % 2 === 0 && S.rowEven]}>
+            <Text style={[S.tdText, S.colNo]}>{idx + 1}</Text>
+            <Text style={[S.tdText, S.colDesc]} numberOfLines={2}>
+              {o.description}
+              {allOrders.length > 1 ? `  (${format(new Date(o.date), 'dd/MM')})` : ''}
+            </Text>
+            <Text style={[S.tdText, S.colQty, { textAlign: 'center' }]}>
+              {o.quantity > 0 ? Math.round(o.quantity) : '-'}
+            </Text>
+            <Text style={[S.tdText, S.colAmt, { textAlign: 'right', fontWeight: '700' }]}>
+              ₹{Math.round(o.amount)}
+            </Text>
+          </View>
+        ))}
 
         {/* Spacer for visual balance */}
         <View style={{ height: 12 }} />
@@ -111,7 +120,7 @@ const InvoiceBill = forwardRef<View, InvoiceBillProps>(
         {/* ─── Total ─────────────────────────────── */}
         <View style={S.totalBlock}>
           <Text style={S.totalLabel}>{L.totalAmount}</Text>
-          <Text style={S.totalValue}>₹{Math.round(order.amount)}</Text>
+          <Text style={S.totalValue}>₹{Math.round(totalAmount)}</Text>
         </View>
 
         <View style={S.dividerThick} />

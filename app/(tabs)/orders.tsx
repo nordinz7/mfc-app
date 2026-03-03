@@ -88,6 +88,13 @@ function makeStyles(c: AppColors) {
     cardRow1:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     customerName: { fontSize: FontSizes.md, fontWeight: '700', color: c.text, flex: 1, marginRight: Spacing.sm },
     amount:       { fontSize: FontSizes.lg, fontWeight: '800', color: c.success },
+    unbilledTag: {
+      backgroundColor: c.dangerLight,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    unbilledTagText: { fontSize: 10, fontWeight: '800', color: c.danger },
     cardSub:      { fontSize: FontSizes.sm, color: c.textSecondary, marginTop: 2 },
     whatsappBtn:  {
       width: 38, height: 38, borderRadius: 19,
@@ -269,6 +276,7 @@ export default function OrdersScreen() {
   };
 
   const handleDelete = (order: OrderWithCustomer) => {
+    if (order.transaction_id !== null) return; // billed orders cannot be deleted
     Alert.alert(tr.deleteOrder, tr.deleteOrderMsg(order.customer_name), [
       { text: tr.cancel, style: 'cancel' },
       {
@@ -309,37 +317,50 @@ export default function OrdersScreen() {
     ? customerOptions.find(c => c.id === selectedCustomerId)?.label ?? null
     : null;
 
-  const renderItem = ({ item }: { item: OrderWithCustomer }) => (
-    <TouchableOpacity
-      style={S.card}
-      activeOpacity={0.7}
-      onPress={() => router.push({ pathname: '/edit-order', params: { orderId: item.id, customerName: `${item.customer_name} — ${item.customer_place}`, amount: String(item.amount), description: item.description, quantity: String(item.quantity), date: item.date } })}
-      onLongPress={() => handleDelete(item)}
-    >
-      <View style={S.qtyBadge}>
-        <Text style={S.qtyNum}>{item.quantity || 0}</Text>
-        <Text style={S.qtyUnit}>pkt</Text>
-      </View>
-      <View style={S.cardContent}>
-        <View style={S.cardRow1}>
-          <Text style={S.customerName} numberOfLines={1}>{item.customer_name}</Text>
-          {item.amount > 0 && <Text style={S.amount}>&#8377;{item.amount}</Text>}
+  const renderItem = ({ item }: { item: OrderWithCustomer }) => {
+    const isBilled = item.transaction_id !== null;
+    return (
+      <TouchableOpacity
+        style={S.card}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (isBilled) return; // billed orders cannot be edited
+          router.push({ pathname: '/edit-order', params: { orderId: item.id, customerName: `${item.customer_name} — ${item.customer_place}`, amount: String(item.amount), description: item.description, quantity: String(item.quantity), date: item.date } });
+        }}
+        onLongPress={() => handleDelete(item)}
+      >
+        <View style={S.qtyBadge}>
+          <Text style={S.qtyNum}>{item.quantity || 0}</Text>
+          <Text style={S.qtyUnit}>pkt</Text>
         </View>
-        <Text style={S.cardSub} numberOfLines={1}>
-          {item.customer_place} · {format(new Date(item.date), 'dd MMM')}{item.description !== 'Kuboos' ? `  ·  ${item.description}` : ''}
-        </Text>
-      </View>
-      {item.amount > 0 && (
-        <TouchableOpacity
-          style={S.whatsappBtn}
-          onPress={() => handleSend(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <MaterialIcons name="send" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      )}
-    </TouchableOpacity>
-  );
+        <View style={S.cardContent}>
+          <View style={S.cardRow1}>
+            <Text style={S.customerName} numberOfLines={1}>{item.customer_name}</Text>
+            {isBilled
+              ? <Text style={S.amount}>&#8377;{item.amount}</Text>
+              : (
+                <View style={S.unbilledTag}>
+                  <Text style={S.unbilledTagText}>{tr.unbilledTag}</Text>
+                </View>
+              )
+            }
+          </View>
+          <Text style={S.cardSub} numberOfLines={1}>
+            {item.customer_place} · {format(new Date(item.date), 'dd MMM')}{item.description !== 'Kuboos' ? `  ·  ${item.description}` : ''}
+          </Text>
+        </View>
+        {isBilled && item.amount > 0 && (
+          <TouchableOpacity
+            style={S.whatsappBtn}
+            onPress={() => handleSend(item)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <MaterialIcons name="send" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={S.container}>

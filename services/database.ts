@@ -157,20 +157,7 @@ export async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
     try { await db.execAsync(sql); } catch { /* column already exists */ }
   }
 
-  // Retroactively create debit transactions for orders that don't have one
-  try {
-    const orphanOrders = await db.getAllAsync<{ id: number; customer_id: number; amount: number; description: string; date: string }>(
-      `SELECT id, customer_id, amount, description, date FROM orders WHERE transaction_id IS NULL`
-    );
-    for (const o of orphanOrders) {
-      const txn = await db.runAsync(
-        `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
-         VALUES (?, ?, 'debit', ?, ?, ?, ?, ?)`,
-        [o.customer_id, o.id, o.amount, o.description, o.date, o.date, o.date]
-      );
-      await db.runAsync(`UPDATE orders SET transaction_id = ? WHERE id = ?`, [txn.lastInsertRowId, o.id]);
-    }
-  } catch { /* migration already done or no orphan orders */ }
+  // Orders with transaction_id IS NULL are intentionally unbilled — no backfill needed
 
   // Clean up previously soft-deleted rows (migration from status-based to hard-delete)
   try {
@@ -441,22 +428,12 @@ export async function addOrder(
 ): Promise<number> {
   const now = new Date().toISOString();
   const orderDate = date ?? now;
-  let orderId = 0;
-  await db.withTransactionAsync(async () => {
-    const orderResult = await db.runAsync(
-      `INSERT INTO orders (customer_id, amount, description, quantity, date, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [customer_id, amount, description.trim(), quantity, orderDate, now]
-    );
-    orderId = orderResult.lastInsertRowId;
-    const txnResult = await db.runAsync(
-      `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
-       VALUES (?, ?, 'debit', ?, ?, ?, ?, ?)`,
-      [customer_id, orderId, amount, description.trim(), orderDate, now, now]
-    );
-    await db.runAsync(`UPDATE orders SET transaction_id = ? WHERE id = ?`, [txnResult.lastInsertRowId, orderId]);
-  });
-  return orderId;
+  const result = await db.runAsync(
+    `INSERT INTO orders (customer_id, amount, description, quantity, date, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [customer_id, amount, description.trim(), quantity, orderDate, now]
+  );
+  return result.lastInsertRowId;
 }
 
 export async function bulkAddOrders(
@@ -470,18 +447,11 @@ export async function bulkAddOrders(
   await db.withTransactionAsync(async () => {
     for (const o of orders) {
       if (o.quantity <= 0) continue;
-      const orderResult = await db.runAsync(
+      await db.runAsync(
         `INSERT INTO orders (customer_id, amount, description, quantity, date, updated_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [o.customer_id, 0, description.trim(), o.quantity, date, now]
       );
-      const orderId = orderResult.lastInsertRowId;
-      const txnResult = await db.runAsync(
-        `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
-         VALUES (?, ?, 'debit', ?, ?, ?, ?, ?)`,
-        [o.customer_id, orderId, 0, description.trim(), date, now, now]
-      );
-      await db.runAsync(`UPDATE orders SET transaction_id = ? WHERE id = ?`, [txnResult.lastInsertRowId, orderId]);
       count++;
     }
   });
@@ -498,21 +468,26 @@ export async function updateOrder(
 ): Promise<void> {
   const now = new Date().toISOString();
   await db.withTransactionAsync(async () => {
-    const updates = [
-      `UPDATE orders SET amount = ?, description = ?, quantity = ?, updated_at = ?${date ? ', date = ?' : ''} WHERE id = ?`,
-    ];
     const params = date
       ? [amount, description.trim(), quantity, now, date, orderId]
       : [amount, description.trim(), quantity, now, orderId];
-    await db.runAsync(updates[0], params);
-    // Also update the linked debit transaction
-    const txnParams = date
-      ? [amount, description.trim(), now, date, orderId]
-      : [amount, description.trim(), now, orderId];
     await db.runAsync(
-      `UPDATE transactions SET amount = ?, description = ?, updated_at = ?${date ? ', date = ?' : ''} WHERE order_id = ? AND type = 'debit'`,
-      txnParams
+      `UPDATE orders SET amount = ?, description = ?, quantity = ?, updated_at = ?${date ? ', date = ?' : ''} WHERE id = ?`,
+      params
     );
+    // Only update linked transaction if order is billed
+    const order = await db.getFirstAsync<{ transaction_id: number | null }>(
+      `SELECT transaction_id FROM orders WHERE id = ?`, [orderId]
+    );
+    if (order?.transaction_id) {
+      const txnParams = date
+        ? [amount, description.trim(), now, date, orderId]
+        : [amount, description.trim(), now, orderId];
+      await db.runAsync(
+        `UPDATE transactions SET amount = ?, description = ?, updated_at = ?${date ? ', date = ?' : ''} WHERE order_id = ? AND type = 'debit'`,
+        txnParams
+      );
+    }
   });
 }
 
@@ -524,6 +499,85 @@ export async function deleteOrder(
     await db.runAsync(`DELETE FROM transactions WHERE order_id = ?`, [id]);
     await db.runAsync(`DELETE FROM orders WHERE id = ?`, [id]);
   });
+}
+
+// ─── Billing ─────────────────────────────────────────────────────────────────
+
+export interface BillItem {
+  orderId: number;
+  amount: number;
+}
+
+export async function getUnbilledOrders(
+  db: SQLite.SQLiteDatabase,
+): Promise<OrderWithCustomer[]> {
+  return db.getAllAsync<OrderWithCustomer>(
+    `${ORDER_SELECT} WHERE o.transaction_id IS NULL ORDER BY o.date DESC`
+  );
+}
+
+export async function getUnbilledOrdersByDate(
+  db: SQLite.SQLiteDatabase,
+  fromDate: string,
+  toDate: string,
+): Promise<OrderWithCustomer[]> {
+  return db.getAllAsync<OrderWithCustomer>(
+    `${ORDER_SELECT} WHERE o.transaction_id IS NULL AND date(o.date) >= date(?) AND date(o.date) <= date(?) ORDER BY o.date DESC`,
+    [fromDate, toDate]
+  );
+}
+
+export async function getUnbilledOrdersByCustomer(
+  db: SQLite.SQLiteDatabase,
+  customerId: number,
+): Promise<OrderWithCustomer[]> {
+  return db.getAllAsync<OrderWithCustomer>(
+    `${ORDER_SELECT} WHERE o.transaction_id IS NULL AND o.customer_id = ? ORDER BY o.date DESC`,
+    [customerId]
+  );
+}
+
+export async function getCustomersWithUnbilledOrders(
+  db: SQLite.SQLiteDatabase,
+): Promise<{ id: number; name: string; place: string; unbilled_count: number }[]> {
+  return db.getAllAsync<{ id: number; name: string; place: string; unbilled_count: number }>(
+    `SELECT c.id, c.name, c.place, COUNT(o.id) as unbilled_count
+     FROM customers c
+     JOIN orders o ON o.customer_id = c.id
+     WHERE o.transaction_id IS NULL
+     GROUP BY c.id
+     ORDER BY c.name ASC`
+  );
+}
+
+export async function billOrders(
+  db: SQLite.SQLiteDatabase,
+  customerId: number,
+  items: BillItem[],
+): Promise<number[]> {
+  const now = new Date().toISOString();
+  const transactionIds: number[] = [];
+  await db.withTransactionAsync(async () => {
+    for (const item of items) {
+      const order = await db.getFirstAsync<Order>(
+        `SELECT * FROM orders WHERE id = ? AND customer_id = ?`,
+        [item.orderId, customerId]
+      );
+      if (!order || order.transaction_id !== null) continue;
+      const txnResult = await db.runAsync(
+        `INSERT INTO transactions (customer_id, order_id, type, amount, description, date, created_date, updated_at)
+         VALUES (?, ?, 'debit', ?, ?, ?, ?, ?)`,
+        [customerId, item.orderId, item.amount, order.description, order.date, now, now]
+      );
+      const txnId = txnResult.lastInsertRowId;
+      transactionIds.push(txnId);
+      await db.runAsync(
+        `UPDATE orders SET amount = ?, transaction_id = ?, updated_at = ? WHERE id = ?`,
+        [item.amount, txnId, now, item.orderId]
+      );
+    }
+  });
+  return transactionIds;
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────

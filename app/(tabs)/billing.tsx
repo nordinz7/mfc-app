@@ -1,0 +1,825 @@
+import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { useSettings } from '@/contexts/SettingsContext';
+import {
+  billOrders,
+  BillItem,
+  deleteTransaction,
+  getAllTransactionsWithCustomer,
+  getCustomerBalance,
+  getCustomersWithOrders,
+  getCustomersWithUnbilledOrders,
+  getTransactionsByDateRange,
+  getUnbilledOrders,
+  getUnbilledOrdersByCustomer,
+  getUnbilledOrdersByDate,
+  OrderWithCustomer,
+  TransactionWithCustomer,
+} from '@/services/database';
+import { MaterialIcons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+interface DropdownItem { id: string; label: string }
+
+type TabMode = 'unbilled' | 'history';
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+function makeStyles(c: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    // Segmented control
+    segmentRow: {
+      flexDirection: 'row',
+      paddingHorizontal: Spacing.md,
+      paddingTop: Spacing.sm,
+      paddingBottom: Spacing.xs,
+      gap: Spacing.sm,
+      backgroundColor: c.card,
+    },
+    segmentBtn: {
+      flex: 1,
+      paddingVertical: 8,
+      borderRadius: 20,
+      alignItems: 'center',
+      backgroundColor: c.filterInactive,
+    },
+    segmentBtnActive: {
+      backgroundColor: c.primary,
+    },
+    segmentText: {
+      fontSize: FontSizes.sm,
+      fontWeight: '700',
+      color: c.textSecondary,
+    },
+    segmentTextActive: {
+      color: '#FFFFFF',
+    },
+    // Filters
+    filterRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      gap: Spacing.sm,
+      backgroundColor: c.card,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    filterChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 4,
+      paddingHorizontal: Spacing.md, paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: c.filterInactive,
+    },
+    filterChipActive: { backgroundColor: c.primary },
+    filterChipText: { fontSize: FontSizes.sm, fontWeight: '700', color: c.textSecondary },
+    filterChipTextActive: { color: '#FFFFFF' },
+    filterSpacer: { flex: 1 },
+    // Summary
+    summary: {
+      flexDirection: 'row', justifyContent: 'space-between',
+      paddingHorizontal: Spacing.lg, paddingVertical: 6,
+      backgroundColor: c.primaryLight,
+    },
+    summaryText: { fontSize: FontSizes.sm, color: c.primary, fontWeight: '600' },
+    summaryRight: { flexDirection: 'row', gap: Spacing.md },
+    summaryCredit: { fontSize: FontSizes.sm, color: c.success, fontWeight: '800' },
+    summaryDebit: { fontSize: FontSizes.sm, color: c.danger, fontWeight: '800' },
+    // List
+    listContent: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 100 },
+    emptyOuter: { flexGrow: 1 },
+    // Section header (customer group)
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      gap: Spacing.sm,
+      backgroundColor: c.background,
+      marginTop: Spacing.sm,
+    },
+    sectionName: { fontSize: FontSizes.md, fontWeight: '700', color: c.text, flex: 1 },
+    sectionPlace: { fontSize: FontSizes.sm, color: c.textSecondary },
+    // Unbilled order row
+    orderRow: {
+      backgroundColor: c.card,
+      borderRadius: Radius.md,
+      padding: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.sm,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 2,
+    },
+    orderRowSelected: {
+      borderWidth: 1.5,
+      borderColor: c.primary,
+    },
+    checkbox: {
+      width: 24, height: 24, borderRadius: 6,
+      borderWidth: 2, borderColor: c.border,
+      justifyContent: 'center', alignItems: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: c.primary, borderColor: c.primary,
+    },
+    qtyBadge: {
+      width: 42, height: 42, borderRadius: 21,
+      backgroundColor: c.primaryLight,
+      justifyContent: 'center', alignItems: 'center',
+    },
+    qtyNum: { fontSize: FontSizes.lg, fontWeight: '800', color: c.primary, lineHeight: FontSizes.lg + 2 },
+    qtyUnit: { fontSize: 9, fontWeight: '600', color: c.primary, marginTop: -2 },
+    orderInfo: { flex: 1 },
+    orderDesc: { fontSize: FontSizes.sm, fontWeight: '600', color: c.text },
+    orderDate: { fontSize: FontSizes.xs, color: c.textSecondary, marginTop: 1 },
+    amountInput: {
+      width: 80,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: Radius.sm,
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 4,
+      fontSize: FontSizes.md,
+      fontWeight: '700',
+      color: c.text,
+      textAlign: 'right',
+      backgroundColor: c.inputBg,
+    },
+    amountInputActive: {
+      borderColor: c.primary,
+    },
+    // Bottom bar
+    bottomBar: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+      backgroundColor: c.card,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      gap: Spacing.sm,
+    },
+    billBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: Spacing.sm,
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      borderRadius: Radius.md,
+    },
+    billBtnDisabled: {
+      opacity: 0.4,
+    },
+    billBtnText: {
+      fontSize: FontSizes.md,
+      fontWeight: '700',
+      color: '#FFFFFF',
+    },
+    selectedSummary: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    selectedSummaryText: {
+      fontSize: FontSizes.sm,
+      color: c.textSecondary,
+      fontWeight: '600',
+    },
+    selectedSummaryAmount: {
+      fontSize: FontSizes.sm,
+      color: c.primary,
+      fontWeight: '800',
+    },
+    // History mode card (reuse from old transactions screen)
+    card: {
+      backgroundColor: c.card,
+      borderRadius: Radius.md,
+      padding: Spacing.sm,
+      paddingHorizontal: Spacing.md,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.md,
+      elevation: 1,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.06,
+      shadowRadius: 2,
+    },
+    dateBadge: {
+      width: 48, height: 48, borderRadius: 24,
+      justifyContent: 'center', alignItems: 'center',
+    },
+    dateBadgeCredit: { backgroundColor: c.successLight },
+    dateBadgeDebit: { backgroundColor: c.dangerLight },
+    dateBadgeDay: { fontSize: FontSizes.xl, fontWeight: '800', color: c.textSecondary, lineHeight: FontSizes.xl + 2 },
+    dateBadgeMonth: { fontSize: 10, fontWeight: '600', color: c.textMuted, marginTop: -2, textTransform: 'uppercase' },
+    cardContent: { flex: 1 },
+    cardRow1: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    customerName: { fontSize: FontSizes.md, fontWeight: '700', color: c.text, flex: 1, marginRight: Spacing.sm },
+    amountCredit: { fontSize: FontSizes.lg, fontWeight: '800', color: c.success },
+    amountDebit: { fontSize: FontSizes.lg, fontWeight: '800', color: c.danger },
+    cardSub: { fontSize: FontSizes.sm, color: c.textSecondary, marginTop: 2 },
+    // Empty + FAB
+    emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
+    emptyText: { fontSize: FontSizes.xl, fontWeight: '600', color: c.textSecondary, marginTop: Spacing.lg },
+    emptySubText: { fontSize: FontSizes.md, color: c.textMuted, marginTop: Spacing.sm },
+    fab: {
+      position: 'absolute', bottom: 24, right: 24,
+      width: 60, height: 60, borderRadius: 30,
+      backgroundColor: c.primary,
+      justifyContent: 'center', alignItems: 'center',
+      elevation: 6,
+      shadowColor: c.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35, shadowRadius: 8,
+    },
+    // Modal
+    modalOverlay: {
+      flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: c.card, borderTopLeftRadius: 20, borderTopRightRadius: 20,
+      maxHeight: '60%', paddingBottom: 30,
+    },
+    modalHeader: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md,
+      borderBottomWidth: 1, borderBottomColor: c.border,
+    },
+    modalTitle: { fontSize: FontSizes.lg, fontWeight: '700', color: c.text },
+    modalClose: { fontSize: FontSizes.lg, color: c.primary, fontWeight: '600' },
+    modalItem: {
+      paddingHorizontal: Spacing.lg, paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border,
+    },
+    modalItemActive: { backgroundColor: c.primaryLight },
+    modalItemText: { fontSize: FontSizes.md, color: c.text },
+    modalItemTextActive: { color: c.primary, fontWeight: '700' },
+    searchInput: {
+      backgroundColor: c.inputBg, borderWidth: 1.5,
+      borderColor: c.border, borderRadius: Radius.md,
+      padding: Spacing.md, fontSize: FontSizes.md, color: c.text,
+      marginHorizontal: Spacing.lg, marginTop: Spacing.md, marginBottom: Spacing.xs,
+    },
+  });
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function BillingScreen() {
+  const db = useSQLiteContext();
+  const router = useRouter();
+  const { colors, tr } = useSettings();
+  const S = makeStyles(colors);
+
+  const [mode, setMode] = useState<TabMode>('unbilled');
+
+  // ── Unbilled state ──
+  const [unbilledOrders, setUnbilledOrders] = useState<OrderWithCustomer[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [amounts, setAmounts] = useState<Record<number, string>>({});
+  const [unbilledDate, setUnbilledDate] = useState<Date | null>(null);
+  const [showUnbilledDatePicker, setShowUnbilledDatePicker] = useState(false);
+  const [unbilledCustomerId, setUnbilledCustomerId] = useState<string | null>(null);
+  const [unbilledCustomerOptions, setUnbilledCustomerOptions] = useState<DropdownItem[]>([]);
+  const [showUnbilledCustomerModal, setShowUnbilledCustomerModal] = useState(false);
+  const [unbilledCustomerSearch, setUnbilledCustomerSearch] = useState('');
+  const [billing, setBilling] = useState(false);
+
+  // ── History state ──
+  const [transactions, setTransactions] = useState<TransactionWithCustomer[]>([]);
+  const [historyDate, setHistoryDate] = useState<Date | null>(new Date());
+  const [showHistoryDatePicker, setShowHistoryDatePicker] = useState(false);
+  const [historyCustomerId, setHistoryCustomerId] = useState<string | null>(null);
+  const [historyCustomerOptions, setHistoryCustomerOptions] = useState<DropdownItem[]>([]);
+  const [showHistoryCustomerModal, setShowHistoryCustomerModal] = useState(false);
+  const [historyCustomerSearch, setHistoryCustomerSearch] = useState('');
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  // ── Load data ──
+  const loadUnbilled = useCallback(async () => {
+    let results: OrderWithCustomer[];
+    if (unbilledDate && unbilledCustomerId) {
+      const dateStr = unbilledDate.toISOString().slice(0, 10);
+      results = await getUnbilledOrdersByDate(db, dateStr, dateStr);
+      results = results.filter(o => String(o.customer_id) === unbilledCustomerId);
+    } else if (unbilledDate) {
+      const dateStr = unbilledDate.toISOString().slice(0, 10);
+      results = await getUnbilledOrdersByDate(db, dateStr, dateStr);
+    } else if (unbilledCustomerId) {
+      results = await getUnbilledOrdersByCustomer(db, Number(unbilledCustomerId));
+    } else {
+      results = await getUnbilledOrders(db);
+    }
+    setUnbilledOrders(results);
+    const custs = await getCustomersWithUnbilledOrders(db);
+    setUnbilledCustomerOptions(custs.map(c => ({ id: String(c.id), label: c.name })));
+  }, [db, unbilledDate, unbilledCustomerId]);
+
+  const loadHistory = useCallback(async () => {
+    let results: TransactionWithCustomer[];
+    if (historyDate) {
+      const dateStr = historyDate.toISOString().slice(0, 10);
+      results = await getTransactionsByDateRange(db, dateStr, dateStr);
+    } else {
+      results = await getAllTransactionsWithCustomer(db);
+    }
+    if (historyCustomerId) {
+      results = results.filter(t => String(t.customer_id) === historyCustomerId);
+    }
+    setTransactions(results);
+    const custs = await getCustomersWithOrders(db);
+    setHistoryCustomerOptions(custs.map(c => ({ id: String(c.id), label: c.name })));
+  }, [db, historyDate, historyCustomerId]);
+
+  useFocusEffect(useCallback(() => {
+    if (mode === 'unbilled') loadUnbilled();
+    else loadHistory();
+  }, [mode, loadUnbilled, loadHistory]));
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (mode === 'unbilled') await loadUnbilled();
+    else await loadHistory();
+    setRefreshing(false);
+  };
+
+  // ── Selection helpers ──
+  const toggleSelect = (orderId: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) next.delete(orderId);
+      else next.add(orderId);
+      return next;
+    });
+  };
+
+  const toggleSelectCustomerGroup = (customerId: number) => {
+    const groupOrders = unbilledOrders.filter(o => o.customer_id === customerId);
+    const allSelected = groupOrders.every(o => selectedIds.has(o.id));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (const o of groupOrders) {
+        if (allSelected) next.delete(o.id);
+        else next.add(o.id);
+      }
+      return next;
+    });
+  };
+
+  const setAmount = (orderId: number, value: string) => {
+    setAmounts(prev => ({ ...prev, [orderId]: value }));
+  };
+
+  // ── Billing action ──
+  const selectedTotal = useMemo(() => {
+    let total = 0;
+    for (const id of selectedIds) {
+      const amt = parseFloat(amounts[id] || '0');
+      if (amt > 0) total += amt;
+    }
+    return total;
+  }, [selectedIds, amounts]);
+
+  const canBill = useMemo(() => {
+    if (selectedIds.size === 0) return false;
+    for (const id of selectedIds) {
+      const amt = parseFloat(amounts[id] || '0');
+      if (amt <= 0) return false;
+    }
+    return true;
+  }, [selectedIds, amounts]);
+
+  const handleGenerateBill = async () => {
+    if (!canBill || billing) return;
+    setBilling(true);
+    try {
+      // Group by customer
+      const byCustomer = new Map<number, BillItem[]>();
+      for (const id of selectedIds) {
+        const order = unbilledOrders.find(o => o.id === id);
+        if (!order) continue;
+        const amount = parseFloat(amounts[id] || '0');
+        if (!byCustomer.has(order.customer_id)) byCustomer.set(order.customer_id, []);
+        byCustomer.get(order.customer_id)!.push({ orderId: id, amount });
+      }
+
+      for (const [customerId, items] of byCustomer) {
+        await billOrders(db, customerId, items);
+      }
+
+      // Navigate for single-customer billing
+      if (byCustomer.size === 1) {
+        const customerId = byCustomer.keys().next().value!;
+        const balance = await getCustomerBalance(db, customerId);
+        // Check if there are prior transactions (balance from before this billing)
+        const billedTotal = byCustomer.get(customerId)!.reduce((s, i) => s + i.amount, 0);
+        const priorBalance = balance.balance - billedTotal;
+        if (priorBalance !== 0) {
+          // Customer has previous history — consolidated statement
+          router.push({ pathname: '/view-statement', params: { id: String(customerId) } });
+        } else {
+          // No previous history — simple invoice for these orders
+          const orderIds = byCustomer.get(customerId)!.map(i => i.orderId).join(',');
+          router.push({ pathname: '/view-bill', params: { customerId: String(customerId), orderIds } });
+        }
+      } else {
+        const totalCount = selectedIds.size;
+        Alert.alert(tr.billGenerated, tr.billGeneratedMsg(totalCount));
+      }
+
+      // Reset state
+      setSelectedIds(new Set());
+      setAmounts({});
+      await loadUnbilled();
+    } catch {
+      Alert.alert(tr.couldNotSave);
+    } finally {
+      setBilling(false);
+    }
+  };
+
+  // ── Grouped unbilled data ──
+  const groupedSections = useMemo(() => {
+    const groups = new Map<number, { customer: { id: number; name: string; place: string }; orders: OrderWithCustomer[] }>();
+    for (const order of unbilledOrders) {
+      if (!groups.has(order.customer_id)) {
+        groups.set(order.customer_id, {
+          customer: { id: order.customer_id, name: order.customer_name, place: order.customer_place },
+          orders: [],
+        });
+      }
+      groups.get(order.customer_id)!.orders.push(order);
+    }
+    return Array.from(groups.values()).map(g => ({
+      customer: g.customer,
+      data: g.orders,
+    }));
+  }, [unbilledOrders]);
+
+  // ── History helpers ──
+  const handleDeleteTransaction = (txn: TransactionWithCustomer) => {
+    if (txn.type === 'debit') return;
+    Alert.alert(tr.delete, `${tr.delete} ₹${txn.amount} ${tr.payment.toLowerCase()} — ${txn.customer_name}?`, [
+      { text: tr.cancel, style: 'cancel' },
+      {
+        text: tr.delete, style: 'destructive', onPress: async () => {
+          await deleteTransaction(db, txn.id);
+          loadHistory();
+        },
+      },
+    ]);
+  };
+
+  const totalCredit = useMemo(() => transactions.filter(t => t.type === 'credit').reduce((s, t) => s + t.amount, 0), [transactions]);
+  const totalDebit = useMemo(() => transactions.filter(t => t.type === 'debit').reduce((s, t) => s + t.amount, 0), [transactions]);
+
+  // ── Date chip helpers ──
+  const unbilledDateLabel = unbilledDate ? format(unbilledDate, 'dd MMM yyyy') : null;
+  const historyDateLabel = historyDate ? format(historyDate, 'dd MMM yyyy') : null;
+
+  const unbilledCustomerLabel = unbilledCustomerId
+    ? unbilledCustomerOptions.find(c => c.id === unbilledCustomerId)?.label ?? null
+    : null;
+  const historyCustomerLabel = historyCustomerId
+    ? historyCustomerOptions.find(c => c.id === historyCustomerId)?.label ?? null
+    : null;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const renderUnbilledOrder = ({ item }: { item: OrderWithCustomer }) => {
+    const isSelected = selectedIds.has(item.id);
+    return (
+      <View style={[S.orderRow, isSelected && S.orderRowSelected]}>
+        <TouchableOpacity style={[S.checkbox, isSelected && S.checkboxChecked]} onPress={() => toggleSelect(item.id)}>
+          {isSelected && <MaterialIcons name="check" size={16} color="#FFFFFF" />}
+        </TouchableOpacity>
+        <View style={S.qtyBadge}>
+          <Text style={S.qtyNum}>{item.quantity || 0}</Text>
+          <Text style={S.qtyUnit}>pkt</Text>
+        </View>
+        <View style={S.orderInfo}>
+          <Text style={S.orderDesc} numberOfLines={1}>{item.description}</Text>
+          <Text style={S.orderDate}>{format(new Date(item.date), 'dd MMM yyyy')}</Text>
+        </View>
+        {isSelected && (
+          <TextInput
+            style={[S.amountInput, amounts[item.id] ? S.amountInputActive : undefined]}
+            value={amounts[item.id] || ''}
+            onChangeText={(v) => setAmount(item.id, v)}
+            placeholder="₹"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="decimal-pad"
+          />
+        )}
+      </View>
+    );
+  };
+
+  const renderSectionHeader = ({ section }: { section: { customer: { id: number; name: string; place: string }; data: OrderWithCustomer[] } }) => {
+    const allSelected = section.data.every(o => selectedIds.has(o.id));
+    return (
+      <TouchableOpacity style={S.sectionHeader} onPress={() => toggleSelectCustomerGroup(section.customer.id)}>
+        <View style={[S.checkbox, allSelected && S.checkboxChecked]}>
+          {allSelected && <MaterialIcons name="check" size={16} color="#FFFFFF" />}
+        </View>
+        <Text style={S.sectionName} numberOfLines={1}>{section.customer.name}</Text>
+        {section.customer.place ? <Text style={S.sectionPlace}>{section.customer.place}</Text> : null}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHistoryItem = ({ item }: { item: TransactionWithCustomer }) => {
+    const isCredit = item.type === 'credit';
+    return (
+      <TouchableOpacity
+        style={S.card}
+        activeOpacity={0.7}
+        onPress={() => router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } })}
+        onLongPress={() => isCredit && handleDeleteTransaction(item)}
+      >
+        <View style={[S.dateBadge, isCredit ? S.dateBadgeCredit : S.dateBadgeDebit]}>
+          <Text style={S.dateBadgeDay}>{format(new Date(item.date), 'd')}</Text>
+          <Text style={S.dateBadgeMonth}>{format(new Date(item.date), 'MMM')}</Text>
+        </View>
+        <View style={S.cardContent}>
+          <View style={S.cardRow1}>
+            <Text style={S.customerName} numberOfLines={1}>{item.customer_name}</Text>
+            <Text style={isCredit ? S.amountCredit : S.amountDebit}>
+              {isCredit ? '+' : '-'}&#8377;{item.amount}
+            </Text>
+          </View>
+          <Text style={S.cardSub} numberOfLines={1}>
+            {isCredit ? tr.credit : tr.debit} · {item.customer_place}
+            {item.description && item.description !== 'Kuboos' && item.description !== 'Payment received'
+              ? ` · ${item.description}` : ''}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // ── Customer modal (shared) ──
+  const renderCustomerModal = (
+    visible: boolean,
+    onClose: () => void,
+    search: string,
+    setSearch: (v: string) => void,
+    options: DropdownItem[],
+    selectedId: string | null,
+    onSelect: (id: string) => void,
+  ) => (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={S.modalOverlay} onPress={onClose}>
+        <Pressable style={S.modalContent} onPress={() => {}}>
+          <View style={S.modalHeader}>
+            <Text style={S.modalTitle}>{tr.filterByCustomer}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={S.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <TextInput
+            style={S.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder={tr.searchCustomers}
+            placeholderTextColor={colors.textMuted}
+            autoFocus
+          />
+          <FlatList
+            data={options.filter(c => !search.trim() || c.label.toLowerCase().includes(search.toLowerCase()))}
+            keyExtractor={i => i.id}
+            keyboardShouldPersistTaps="handled"
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[S.modalItem, item.id === selectedId && S.modalItemActive]}
+                onPress={() => onSelect(item.id)}
+              >
+                <Text style={[S.modalItemText, item.id === selectedId && S.modalItemTextActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            )}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+
+  return (
+    <View style={S.container}>
+      {/* Segmented control */}
+      <View style={S.segmentRow}>
+        <TouchableOpacity
+          style={[S.segmentBtn, mode === 'unbilled' && S.segmentBtnActive]}
+          onPress={() => setMode('unbilled')}
+        >
+          <Text style={[S.segmentText, mode === 'unbilled' && S.segmentTextActive]}>{tr.unbilled}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[S.segmentBtn, mode === 'history' && S.segmentBtnActive]}
+          onPress={() => setMode('history')}
+        >
+          <Text style={[S.segmentText, mode === 'history' && S.segmentTextActive]}>{tr.history}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ─── UNBILLED MODE ─── */}
+      {mode === 'unbilled' && (
+        <>
+          <View style={S.filterRow}>
+            <TouchableOpacity
+              style={[S.filterChip, unbilledDate ? S.filterChipActive : undefined]}
+              onPress={() => { if (unbilledDate) setUnbilledDate(null); else setShowUnbilledDatePicker(true); }}
+            >
+              <MaterialIcons name={unbilledDate ? 'close' : 'calendar-today'} size={16} color={unbilledDate ? '#FFFFFF' : colors.textSecondary} />
+              <Text style={[S.filterChipText, unbilledDate && S.filterChipTextActive]}>
+                {unbilledDateLabel ?? tr.selectDate}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[S.filterChip, unbilledCustomerId ? S.filterChipActive : undefined]}
+              onPress={() => { if (unbilledCustomerId) setUnbilledCustomerId(null); else setShowUnbilledCustomerModal(true); }}
+            >
+              <MaterialIcons name={unbilledCustomerId ? 'close' : 'person'} size={16} color={unbilledCustomerId ? '#FFFFFF' : colors.textSecondary} />
+              <Text style={[S.filterChipText, unbilledCustomerId && S.filterChipTextActive]}>
+                {unbilledCustomerLabel ?? tr.selectCustomer}
+              </Text>
+            </TouchableOpacity>
+            <View style={S.filterSpacer} />
+          </View>
+
+          {showUnbilledDatePicker && (
+            <DateTimePicker
+              value={unbilledDate ?? new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={(_e: DateTimePickerEvent, d?: Date) => {
+                if (Platform.OS === 'android') setShowUnbilledDatePicker(false);
+                if (d) setUnbilledDate(d);
+              }}
+            />
+          )}
+
+          {unbilledOrders.length > 0 && (
+            <View style={S.summary}>
+              <Text style={S.summaryText}>
+                {unbilledOrders.length} {unbilledOrders.length === 1 ? tr.order : tr.orders_plural}
+              </Text>
+              <Text style={S.summaryText}>
+                {tr.total}: {unbilledOrders.reduce((s, o) => s + (o.quantity || 0), 0)} pkt
+              </Text>
+            </View>
+          )}
+
+          <SectionList
+            sections={groupedSections}
+            keyExtractor={item => String(item.id)}
+            renderItem={renderUnbilledOrder}
+            renderSectionHeader={renderSectionHeader}
+            contentContainerStyle={unbilledOrders.length === 0 ? S.emptyOuter : S.listContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+            stickySectionHeadersEnabled={false}
+            ListEmptyComponent={
+              <View style={S.emptyWrap}>
+                <MaterialIcons name="receipt" size={72} color={colors.textMuted} />
+                <Text style={S.emptyText}>{tr.nothingToBill}</Text>
+                <Text style={S.emptySubText}>{tr.nothingToBillDesc}</Text>
+              </View>
+            }
+          />
+
+          {selectedIds.size > 0 && (
+            <View style={S.bottomBar}>
+              <View style={S.selectedSummary}>
+                <Text style={S.selectedSummaryText}>{selectedIds.size} {tr.selectOrdersToBill}</Text>
+                {selectedTotal > 0 && <Text style={S.selectedSummaryAmount}>&#8377;{selectedTotal}</Text>}
+              </View>
+              <TouchableOpacity
+                style={[S.billBtn, !canBill && S.billBtnDisabled]}
+                onPress={handleGenerateBill}
+                disabled={!canBill || billing}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="receipt-long" size={22} color="#FFFFFF" />
+                <Text style={S.billBtnText}>{tr.generateBill}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {renderCustomerModal(
+            showUnbilledCustomerModal,
+            () => { setShowUnbilledCustomerModal(false); setUnbilledCustomerSearch(''); },
+            unbilledCustomerSearch,
+            setUnbilledCustomerSearch,
+            unbilledCustomerOptions,
+            unbilledCustomerId,
+            (id) => { setUnbilledCustomerId(id); setShowUnbilledCustomerModal(false); setUnbilledCustomerSearch(''); },
+          )}
+        </>
+      )}
+
+      {/* ─── HISTORY MODE ─── */}
+      {mode === 'history' && (
+        <>
+          <View style={S.filterRow}>
+            <TouchableOpacity
+              style={[S.filterChip, historyDate ? S.filterChipActive : undefined]}
+              onPress={() => { if (historyDate) setHistoryDate(null); else setShowHistoryDatePicker(true); }}
+            >
+              <MaterialIcons name={historyDate ? 'close' : 'calendar-today'} size={16} color={historyDate ? '#FFFFFF' : colors.textSecondary} />
+              <Text style={[S.filterChipText, historyDate && S.filterChipTextActive]}>
+                {historyDateLabel ?? tr.selectDate}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[S.filterChip, historyCustomerId ? S.filterChipActive : undefined]}
+              onPress={() => { if (historyCustomerId) setHistoryCustomerId(null); else setShowHistoryCustomerModal(true); }}
+            >
+              <MaterialIcons name={historyCustomerId ? 'close' : 'person'} size={16} color={historyCustomerId ? '#FFFFFF' : colors.textSecondary} />
+              <Text style={[S.filterChipText, historyCustomerId && S.filterChipTextActive]}>
+                {historyCustomerLabel ?? tr.selectCustomer}
+              </Text>
+            </TouchableOpacity>
+            <View style={S.filterSpacer} />
+          </View>
+
+          {showHistoryDatePicker && (
+            <DateTimePicker
+              value={historyDate ?? new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              onChange={(_e: DateTimePickerEvent, d?: Date) => {
+                if (Platform.OS === 'android') setShowHistoryDatePicker(false);
+                if (d) setHistoryDate(d);
+              }}
+            />
+          )}
+
+          {transactions.length > 0 && (
+            <View style={S.summary}>
+              <Text style={S.summaryText}>
+                {transactions.length} {transactions.length === 1 ? tr.transaction : tr.transactions_plural}
+              </Text>
+              <View style={S.summaryRight}>
+                {totalCredit > 0 && <Text style={S.summaryCredit}>+&#8377;{totalCredit} {tr.totalReceived}</Text>}
+                {totalDebit > 0 && <Text style={S.summaryDebit}>-&#8377;{totalDebit} {tr.totalOrdered}</Text>}
+              </View>
+            </View>
+          )}
+
+          <FlatList
+            data={transactions}
+            keyExtractor={item => String(item.id)}
+            renderItem={renderHistoryItem}
+            contentContainerStyle={transactions.length === 0 ? S.emptyOuter : S.listContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
+            ListEmptyComponent={
+              <View style={S.emptyWrap}>
+                <MaterialIcons name="swap-horiz" size={72} color={colors.textMuted} />
+                <Text style={S.emptyText}>{tr.noTransactionsFound}</Text>
+                <Text style={S.emptySubText}>{tr.tapInfo}</Text>
+              </View>
+            }
+          />
+
+          <TouchableOpacity style={S.fab} onPress={() => router.push('/add-payment')} accessibilityLabel={tr.addPayment}>
+            <MaterialIcons name="add" size={34} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {renderCustomerModal(
+            showHistoryCustomerModal,
+            () => { setShowHistoryCustomerModal(false); setHistoryCustomerSearch(''); },
+            historyCustomerSearch,
+            setHistoryCustomerSearch,
+            historyCustomerOptions,
+            historyCustomerId,
+            (id) => { setHistoryCustomerId(id); setShowHistoryCustomerModal(false); setHistoryCustomerSearch(''); },
+          )}
+        </>
+      )}
+    </View>
+  );
+}

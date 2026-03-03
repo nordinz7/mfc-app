@@ -251,6 +251,20 @@ const en = {
   orderDefaults: 'Order Defaults',
   defaultOrderDesc: 'Default Item Name',
   defaultOrderDescPlaceholder: 'e.g. Kuboos',
+  // Billing
+  billing: 'Billing',
+  unbilled: 'Unbilled',
+  history: 'History',
+  generateBill: 'Generate Bill',
+  nothingToBill: 'No unbilled orders.',
+  nothingToBillDesc: 'New orders will appear here for billing.',
+  billGenerated: 'Bill Generated',
+  billGeneratedMsg: (count: number) => `${count} order${count === 1 ? '' : 's'} billed successfully.`,
+  previousBalance: 'Previous Balance',
+  newOrders: 'New Orders',
+  selectOrdersToBill: 'Select orders to bill',
+  unbilledTag: 'Unbilled',
+  enterBillAmount: 'Amount',
 };
 
 const ta: typeof en = {
@@ -492,6 +506,20 @@ const ta: typeof en = {
   orderDefaults: 'ஆர்டர் இயல்புநிலைகள்',
   defaultOrderDesc: 'இயல்பு பொருள் பெயர்',
   defaultOrderDescPlaceholder: 'எ.கா. Kuboos',
+  // Billing
+  billing: 'பில்லிங்',
+  unbilled: 'பில் ஆகாதவை',
+  history: 'வரலாறு',
+  generateBill: 'பில் உருவாக்கு',
+  nothingToBill: 'பில் செய்ய ஆர்டர்கள் இல்லை.',
+  nothingToBillDesc: 'புதிய ஆர்டர்கள் பில்லிங்கிற்கு இங்கு தோன்றும்.',
+  billGenerated: 'பில் உருவாக்கப்பட்டது',
+  billGeneratedMsg: (count: number) => `${count} ஆர்டர்${count === 1 ? '' : 'கள்'} வெற்றிகரமாக பில் செய்யப்பட்டன.`,
+  previousBalance: 'முந்தைய நிலுவை',
+  newOrders: 'புதிய ஆர்டர்கள்',
+  selectOrdersToBill: 'பில் செய்ய ஆர்டர்களைத் தேர்வு செய்யுங்கள்',
+  unbilledTag: 'பில் ஆகவில்லை',
+  enterBillAmount: 'தொகை',
 };
 
 export const translations = { en, ta };
