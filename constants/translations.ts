@@ -264,6 +264,8 @@ const en = {
   newOrders: 'New Orders',
   selectOrdersToBill: 'Select orders to bill',
   unbilledTag: 'Unbilled',
+  billedTag: 'Billed',
+  cannotEditBilled: 'This order has already been billed and cannot be edited.',
   enterBillAmount: 'Amount',
 };
 
@@ -519,6 +521,8 @@ const ta: typeof en = {
   newOrders: 'புதிய ஆர்டர்கள்',
   selectOrdersToBill: 'பில் செய்ய ஆர்டர்களைத் தேர்வு செய்யுங்கள்',
   unbilledTag: 'பில் ஆகவில்லை',
+  billedTag: 'பில் ஆனது',
+  cannotEditBilled: 'இந்த ஆர்டர் ஏற்கனவே பில் செய்யப்பட்டுள்ளது, மாற்ற இயலாது.',
   enterBillAmount: 'தொகை',
 };
 

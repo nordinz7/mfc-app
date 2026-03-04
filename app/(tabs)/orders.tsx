@@ -95,6 +95,16 @@ function makeStyles(c: AppColors) {
       borderRadius: 4,
     },
     unbilledTagText: { fontSize: 10, fontWeight: '800', color: c.danger },
+    billedTag: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      backgroundColor: c.successLight,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    billedTagText: { fontSize: 10, fontWeight: '800', color: c.success },
     cardSub:      { fontSize: FontSizes.sm, color: c.textSecondary, marginTop: 2 },
     whatsappBtn:  {
       width: 38, height: 38, borderRadius: 19,
@@ -337,7 +347,15 @@ export default function OrdersScreen() {
           <View style={S.cardRow1}>
             <Text style={S.customerName} numberOfLines={1}>{item.customer_name}</Text>
             {isBilled
-              ? <Text style={S.amount}>&#8377;{item.billed_amount}</Text>
+              ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={S.billedTag}>
+                    <MaterialIcons name="receipt" size={10} color={colors.success} />
+                    <Text style={S.billedTagText}>{tr.billedTag}</Text>
+                  </View>
+                  <Text style={S.amount}>&#8377;{item.billed_amount}</Text>
+                </View>
+              )
               : (
                 <View style={S.unbilledTag}>
                   <Text style={S.unbilledTagText}>{tr.unbilledTag}</Text>

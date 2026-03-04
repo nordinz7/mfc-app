@@ -1,19 +1,19 @@
 import InvoiceBill from '@/components/InvoiceBill';
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
-import { getCustomerById, type OrderWithCustomer } from '@/services/database';
+import { getBillById, getCustomerById, type OrderWithCustomer } from '@/services/database';
 import { shareInvoiceImage } from '@/utils/whatsapp';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 
@@ -70,14 +70,16 @@ export default function ViewBillScreen() {
   const { colors, tr, lang, companyName, companyPlace, companyPhone } = useSettings();
   const S = makeStyles(colors);
 
-  const { customerId, orderIds } = useLocalSearchParams<{
+  const { customerId, orderIds, billId } = useLocalSearchParams<{
     customerId: string;
     orderIds: string; // comma-separated order IDs
+    billId?: string;
   }>();
 
   const billRef = useRef<ViewShot>(null);
   const [sharing, setSharing] = useState(false);
   const [orders, setOrders] = useState<OrderWithCustomer[]>([]);
+  const [billNumber, setBillNumber] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -99,9 +101,17 @@ export default function ViewBillScreen() {
         if (row) results.push(row);
       }
       setOrders(results);
+
+      // Fetch bill number
+      const billIdNum = billId ? Number(billId) : results[0]?.bill_id;
+      if (billIdNum) {
+        const bill = await getBillById(db, billIdNum);
+        if (bill) setBillNumber(bill.bill_number);
+      }
+
       setLoading(false);
     })();
-  }, [db, customerId, orderIds]);
+  }, [db, customerId, orderIds, billId]);
 
   const handleShare = async () => {
     if (sharing || !billRef.current?.capture) return;
@@ -133,6 +143,7 @@ export default function ViewBillScreen() {
               companyName={companyName}
               companyPlace={companyPlace}
               companyPhone={companyPhone}
+              billNumber={billNumber}
               orders={orders}
               lang={lang}
             />

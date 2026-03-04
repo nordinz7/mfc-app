@@ -7,6 +7,7 @@ export interface InvoiceBillProps {
   companyName?: string;
   companyPlace?: string;
   companyPhone?: string;
+  billNumber?: string;
   order?: OrderWithCustomer;
   orders?: OrderWithCustomer[];
   lang?: 'en' | 'ta';
@@ -26,6 +27,7 @@ const LABELS = {
     totalAmount: 'Total Amount',
     thankYou: 'THANK YOU!',
     eoe: 'E. & O.E.',
+    billNo: 'Bill No',
   },
   ta: {
     title: 'விலைப்பட்டியல் / பில்',
@@ -40,11 +42,12 @@ const LABELS = {
     totalAmount: 'மொத்த தொகை',
     thankYou: 'நன்றி!',
     eoe: 'E. & O.E.',
+    billNo: 'பில் எண்',
   },
 };
 
 const InvoiceBill = forwardRef<View, InvoiceBillProps>(
-  ({ companyName, companyPlace, companyPhone, order, orders, lang = 'en' }, ref) => {
+  ({ companyName, companyPlace, companyPhone, billNumber, order, orders, lang = 'en' }, ref) => {
     const L = LABELS[lang];
     const allOrders = orders ?? (order ? [order] : []);
     const firstOrder = allOrders[0];
@@ -78,6 +81,12 @@ const InvoiceBill = forwardRef<View, InvoiceBillProps>(
             ) : null}
           </View>
           <View style={S.metaRight}>
+            {billNumber ? (
+              <Text style={S.metaLabel}>
+                {L.billNo}:{' '}
+                <Text style={S.metaValue}>{billNumber}</Text>
+              </Text>
+            ) : null}
             <Text style={S.metaLabel}>
               {L.date}:{' '}
               <Text style={S.metaValue}>{dateStr}</Text>

@@ -1,12 +1,12 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
-import { updateOrder } from '@/services/database';
+import { isOrderBilled, updateOrder } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -69,6 +69,19 @@ export default function EditOrderScreen() {
   const [orderDate, setOrderDate]     = useState<Date>(params.date ? new Date(params.date) : new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving]           = useState(false);
+
+  // Guard: if order is already billed, show alert and go back
+  useEffect(() => {
+    (async () => {
+      if (!params.orderId) return;
+      const billed = await isOrderBilled(db, Number(params.orderId));
+      if (billed) {
+        Alert.alert(tr.billing, tr.cannotEditBilled, [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      }
+    })();
+  }, [db, params.orderId]);
 
   const onDateChange = (_event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === 'android') setShowDatePicker(false);

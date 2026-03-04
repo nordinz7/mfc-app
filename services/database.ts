@@ -17,6 +17,7 @@ export interface Order {
   description: string;
   quantity: number;
   transaction_id: number | null;
+  bill_id: number | null;
   date: string;
   updated_at: string;
 }
@@ -68,6 +69,31 @@ export interface StatementTransaction {
   id: number;
   statement_id: number;
   transaction_id: number;
+}
+
+export interface Bill {
+  id: number;
+  bill_number: string;
+  customer_id: number;
+  bill_date: string;
+  previous_balance: number;
+  total_amount: number;
+  payment_amount: number;
+  net_amount: number;
+  notes: string;
+  status: string;
+  created_date: string;
+  updated_at: string;
+}
+
+export interface BillItemRow {
+  id: number;
+  bill_id: number;
+  order_id: number | null;
+  type: 'order' | 'previous_balance' | 'payment';
+  description: string;
+  quantity: number;
+  amount: number;
 }
 
 export interface CustomerWithBalance extends Customer {
@@ -145,6 +171,35 @@ export async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
     );
   `);
 
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS bills (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      bill_number      TEXT    NOT NULL UNIQUE,
+      customer_id      INTEGER NOT NULL REFERENCES customers(id),
+      bill_date        TEXT    NOT NULL,
+      previous_balance REAL    NOT NULL DEFAULT 0,
+      total_amount     REAL    NOT NULL DEFAULT 0,
+      payment_amount   REAL    NOT NULL DEFAULT 0,
+      net_amount       REAL    NOT NULL DEFAULT 0,
+      notes            TEXT    NOT NULL DEFAULT '',
+      status           TEXT    NOT NULL DEFAULT 'active',
+      created_date     TEXT    NOT NULL,
+      updated_at       TEXT    NOT NULL DEFAULT ''
+    );
+  `);
+
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS bill_items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      bill_id     INTEGER NOT NULL REFERENCES bills(id),
+      order_id    INTEGER REFERENCES orders(id),
+      type        TEXT    NOT NULL DEFAULT 'order',
+      description TEXT    NOT NULL DEFAULT '',
+      quantity    REAL    NOT NULL DEFAULT 0,
+      amount      REAL    NOT NULL DEFAULT 0
+    );
+  `);
+
   // Non-destructive migrations for existing DBs — ignore errors if column exists
   const migrations = [
     `ALTER TABLE customers ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''`,
@@ -152,6 +207,7 @@ export async function initDatabase(db: SQLite.SQLiteDatabase): Promise<void> {
     `ALTER TABLE orders ADD COLUMN status TEXT NOT NULL DEFAULT 'active'`,
     `ALTER TABLE orders ADD COLUMN quantity REAL NOT NULL DEFAULT 0`,
     `ALTER TABLE orders ADD COLUMN transaction_id INTEGER DEFAULT NULL`,
+    `ALTER TABLE orders ADD COLUMN bill_id INTEGER DEFAULT NULL`,
   ];
   for (const sql of migrations) {
     try { await db.execAsync(sql); } catch { /* column already exists */ }
@@ -459,6 +515,17 @@ export async function bulkAddOrders(
   return count;
 }
 
+export async function isOrderBilled(
+  db: SQLite.SQLiteDatabase,
+  orderId: number,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ transaction_id: number | null }>(
+    `SELECT transaction_id FROM orders WHERE id = ?`,
+    [orderId]
+  );
+  return row?.transaction_id !== null && row?.transaction_id !== undefined;
+}
+
 export async function updateOrder(
   db: SQLite.SQLiteDatabase,
   orderId: number,
@@ -468,6 +535,14 @@ export async function updateOrder(
 ): Promise<void> {
   const now = new Date().toISOString();
   await db.withTransactionAsync(async () => {
+    // Block update if order is already billed
+    const order = await db.getFirstAsync<{ transaction_id: number | null }>(
+      `SELECT transaction_id FROM orders WHERE id = ?`,
+      [orderId]
+    );
+    if (order?.transaction_id !== null && order?.transaction_id !== undefined) {
+      throw new Error('Cannot edit a billed order');
+    }
     const params = date
       ? [description.trim(), quantity, now, date, orderId]
       : [description.trim(), quantity, now, orderId];
@@ -537,14 +612,41 @@ export async function getCustomersWithUnbilledOrders(
   );
 }
 
+async function generateBillNumber(
+  db: SQLite.SQLiteDatabase,
+  customerId: number,
+  billDate: string,
+): Promise<string> {
+  const dateStr = billDate.replace(/-/g, '');
+  const prefix = `${dateStr}-${customerId}`;
+  const row = await db.getFirstAsync<{ cnt: number }>(
+    `SELECT COUNT(*) as cnt FROM bills WHERE customer_id = ? AND bill_date = ?`,
+    [customerId, billDate]
+  );
+  const count = (row?.cnt ?? 0) + 1;
+  return count === 1 ? prefix : `${prefix}-${String(count).padStart(2, '0')}`;
+}
+
 export async function billOrders(
   db: SQLite.SQLiteDatabase,
   customerId: number,
   items: BillItem[],
-): Promise<number[]> {
+): Promise<{ billId: number; transactionIds: number[] }> {
   const now = new Date().toISOString();
+  const billDate = now.slice(0, 10);
   const transactionIds: number[] = [];
+  let billId = 0;
   await db.withTransactionAsync(async () => {
+    const billNumber = await generateBillNumber(db, customerId, billDate);
+    const totalAmount = items.reduce((s, i) => s + i.amount, 0);
+
+    const billResult = await db.runAsync(
+      `INSERT INTO bills (bill_number, customer_id, bill_date, previous_balance, total_amount, payment_amount, net_amount, notes, created_date, updated_at)
+       VALUES (?, ?, ?, 0, ?, 0, ?, '', ?, ?)`,
+      [billNumber, customerId, billDate, totalAmount, totalAmount, now, now]
+    );
+    billId = billResult.lastInsertRowId;
+
     for (const item of items) {
       const order = await db.getFirstAsync<Order>(
         `SELECT * FROM orders WHERE id = ? AND customer_id = ?`,
@@ -559,12 +661,17 @@ export async function billOrders(
       const txnId = txnResult.lastInsertRowId;
       transactionIds.push(txnId);
       await db.runAsync(
-        `UPDATE orders SET transaction_id = ?, updated_at = ? WHERE id = ?`,
-        [txnId, now, item.orderId]
+        `UPDATE orders SET transaction_id = ?, bill_id = ?, updated_at = ? WHERE id = ?`,
+        [txnId, billId, now, item.orderId]
+      );
+      await db.runAsync(
+        `INSERT INTO bill_items (bill_id, order_id, type, description, quantity, amount)
+         VALUES (?, ?, 'order', ?, ?, ?)`,
+        [billId, item.orderId, order.description, order.quantity, item.amount]
       );
     }
   });
-  return transactionIds;
+  return { billId, transactionIds };
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
@@ -677,6 +784,12 @@ export async function getCustomerById(
   return db.getFirstAsync<Customer>(`SELECT * FROM customers WHERE id = ?`, [id]);
 }
 
+export async function getBillById(
+  db: SQLite.SQLiteDatabase, id: number,
+): Promise<Bill | null> {
+  return db.getFirstAsync<Bill>(`SELECT * FROM bills WHERE id = ?`, [id]);
+}
+
 // ─── Backup ───────────────────────────────────────────────────────────────────
 
 export async function getAllDataForBackup(db: SQLite.SQLiteDatabase) {
@@ -685,7 +798,9 @@ export async function getAllDataForBackup(db: SQLite.SQLiteDatabase) {
   const transactions           = await db.getAllAsync<Transaction>(`SELECT * FROM transactions`);
   const statements             = await db.getAllAsync<Statement>(`SELECT * FROM statements`);
   const statement_transactions = await db.getAllAsync<StatementTransaction>(`SELECT * FROM statement_transactions`);
-  return { customers, orders, transactions, statements, statement_transactions };
+  const bills                  = await db.getAllAsync<Bill>(`SELECT * FROM bills`);
+  const bill_items             = await db.getAllAsync<BillItemRow>(`SELECT * FROM bill_items`);
+  return { customers, orders, transactions, statements, statement_transactions, bills, bill_items };
 }
 
 // ─── Restore ──────────────────────────────────────────────────────────────────
@@ -698,6 +813,8 @@ export interface BackupPayload {
   transactions?: Transaction[];
   statements?: Statement[];
   statement_transactions?: StatementTransaction[];
+  bills?: Bill[];
+  bill_items?: BillItemRow[];
 }
 
 /**
@@ -723,6 +840,8 @@ export async function restoreFromBackupData(
 ): Promise<{ customers: number; orders: number }> {
   await db.withTransactionAsync(async () => {
     // Clear all tables (respect FK ordering)
+    await db.execAsync(`DELETE FROM bill_items`);
+    await db.execAsync(`DELETE FROM bills`);
     await db.execAsync(`DELETE FROM statement_transactions`);
     await db.execAsync(`DELETE FROM statements`);
     await db.execAsync(`DELETE FROM transactions`);
@@ -741,9 +860,9 @@ export async function restoreFromBackupData(
     // Re-insert orders (amount column kept in DB as 0 for backward compat)
     for (const o of payload.orders) {
       await db.runAsync(
-        `INSERT INTO orders (id, customer_id, amount, description, quantity, transaction_id, date, updated_at, status)
-         VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?)`,
-        [o.id, o.customer_id, o.description, o.quantity ?? 0, o.transaction_id ?? null, o.date, o.updated_at, (o as any).status ?? 'active'],
+        `INSERT INTO orders (id, customer_id, amount, description, quantity, transaction_id, bill_id, date, updated_at, status)
+         VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
+        [o.id, o.customer_id, o.description, o.quantity ?? 0, o.transaction_id ?? null, o.bill_id ?? null, o.date, o.updated_at, (o as any).status ?? 'active'],
       );
     }
 
@@ -767,6 +886,20 @@ export async function restoreFromBackupData(
         await db.runAsync(
           `INSERT INTO statement_transactions (id, statement_id, transaction_id) VALUES (?, ?, ?)`,
           [st.id, st.statement_id, st.transaction_id],
+        );
+      }
+      for (const b of payload.bills ?? []) {
+        await db.runAsync(
+          `INSERT INTO bills (id, bill_number, customer_id, bill_date, previous_balance, total_amount, payment_amount, net_amount, notes, status, created_date, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [b.id, b.bill_number, b.customer_id, b.bill_date, b.previous_balance, b.total_amount, b.payment_amount, b.net_amount, b.notes, (b as any).status ?? 'active', b.created_date, b.updated_at],
+        );
+      }
+      for (const bi of payload.bill_items ?? []) {
+        await db.runAsync(
+          `INSERT INTO bill_items (id, bill_id, order_id, type, description, quantity, amount)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [bi.id, bi.bill_id, bi.order_id, bi.type, bi.description, bi.quantity, bi.amount],
         );
       }
     } else {

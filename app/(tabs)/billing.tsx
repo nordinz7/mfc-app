@@ -1,19 +1,19 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
-  billOrders,
-  BillItem,
-  deleteTransaction,
-  getAllTransactionsWithCustomer,
-  getCustomerBalance,
-  getCustomersWithOrders,
-  getCustomersWithUnbilledOrders,
-  getTransactionsByDateRange,
-  getUnbilledOrders,
-  getUnbilledOrdersByCustomer,
-  getUnbilledOrdersByDate,
-  OrderWithCustomer,
-  TransactionWithCustomer,
+    BillItem,
+    billOrders,
+    deleteTransaction,
+    getAllTransactionsWithCustomer,
+    getCustomerBalance,
+    getCustomersWithOrders,
+    getCustomersWithUnbilledOrders,
+    getTransactionsByDateRange,
+    getUnbilledOrders,
+    getUnbilledOrdersByCustomer,
+    getUnbilledOrdersByDate,
+    OrderWithCustomer,
+    TransactionWithCustomer,
 } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -22,18 +22,18 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  Pressable,
-  RefreshControl,
-  SectionList,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    Pressable,
+    RefreshControl,
+    SectionList,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 interface DropdownItem { id: string; label: string }
@@ -418,6 +418,7 @@ export default function BillingScreen() {
     try {
       // Group by customer
       const byCustomer = new Map<number, BillItem[]>();
+      let lastBillId = 0;
       for (const id of selectedIds) {
         const order = unbilledOrders.find(o => o.id === id);
         if (!order) continue;
@@ -427,7 +428,8 @@ export default function BillingScreen() {
       }
 
       for (const [customerId, items] of byCustomer) {
-        await billOrders(db, customerId, items);
+        const result = await billOrders(db, customerId, items);
+        lastBillId = result.billId;
       }
 
       // Navigate for single-customer billing
@@ -443,7 +445,7 @@ export default function BillingScreen() {
         } else {
           // No previous history — simple invoice for these orders
           const orderIds = byCustomer.get(customerId)!.map(i => i.orderId).join(',');
-          router.push({ pathname: '/view-bill', params: { customerId: String(customerId), orderIds } });
+          router.push({ pathname: '/view-bill', params: { customerId: String(customerId), orderIds, billId: String(lastBillId) } });
         }
       } else {
         const totalCount = selectedIds.size;
