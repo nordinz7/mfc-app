@@ -83,7 +83,6 @@ function makeStyles(c: AppColors) {
       borderRadius: Radius.md,
     },
     paymentBtn:   { backgroundColor: c.success },
-    statementBtn: { backgroundColor: c.whatsapp },
     actionText:   { color: '#FFFFFF', fontSize: FontSizes.md, fontWeight: '700' },
     sectionTitle: {
       fontSize: FontSizes.lg, fontWeight: '700', color: c.text,
@@ -150,15 +149,6 @@ export default function CustomerDetailScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
-  const handleViewStatement = () => {
-    if (!customer) return;
-    if (transactions.length === 0) {
-      Alert.alert('', tr.noBalanceDue);
-      return;
-    }
-    router.push({ pathname: '/view-statement' as any, params: { id: String(customer.id) } });
-  };
 
   const handleDeleteTransaction = (txn: TransactionWithQuantity) => {
     if (txn.type === 'debit') return; // Debit transactions are deleted via order deletion
@@ -283,10 +273,6 @@ export default function CustomerDetailScreen() {
         >
           <MaterialIcons name="payments" size={20} color="#FFFFFF" />
           <Text style={S.actionText}>{tr.recordPayment}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[S.actionBtn, S.statementBtn]} onPress={handleViewStatement}>
-          <MaterialIcons name="receipt-long" size={20} color="#FFFFFF" />
-          <Text style={S.actionText}>{tr.viewStatement}</Text>
         </TouchableOpacity>
       </View>
 
