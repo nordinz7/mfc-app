@@ -87,9 +87,9 @@ function makeStyles(c: AppColors) {
       borderBottomColor: c.border,
     },
     filterChip: {
-      flexDirection: 'row', alignItems: 'center', gap: 4,
+      flexDirection: 'row', alignItems: 'center', gap: 3,
       flexShrink: 0,
-      paddingHorizontal: Spacing.md, paddingVertical: 6,
+      paddingHorizontal: Spacing.sm, paddingVertical: 5,
       borderRadius: 20,
       backgroundColor: c.filterInactive,
     },
@@ -600,7 +600,9 @@ export default function BillingScreen() {
             </Text>
           </View>
           <Text style={S.cardSub} numberOfLines={1}>
-            {isCredit ? tr.credit : tr.debit} · {item.customer_place}
+            {isCredit ? tr.credit : tr.debit}
+            {!isCredit && item.quantity > 0 ? ` · ${Math.round(item.quantity)} pkt` : ''}
+            {item.customer_place ? ` · ${item.customer_place}` : ''}
             {item.description && item.description !== 'Kuboos' && item.description !== 'Payment received'
               ? ` · ${item.description}` : ''}
           </Text>
@@ -780,25 +782,25 @@ export default function BillingScreen() {
               style={[S.filterChip, historyDate ? S.filterChipActive : undefined]}
               onPress={() => { if (historyDate) setHistoryDate(null); else setShowHistoryDatePicker(true); }}
             >
-              <MaterialIcons name={historyDate ? 'close' : 'calendar-today'} size={16} color={historyDate ? '#FFFFFF' : colors.textSecondary} />
+              <MaterialIcons name={historyDate ? 'close' : 'calendar-today'} size={14} color={historyDate ? '#FFFFFF' : colors.textSecondary} />
               <Text style={[S.filterChipText, historyDate && S.filterChipTextActive]}>
-                {historyDateLabel ?? tr.selectDate}
+                {historyDateLabel ?? tr.date}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[S.filterChip, historyCustomerId ? S.filterChipActive : undefined]}
               onPress={() => { if (historyCustomerId) setHistoryCustomerId(null); else setShowHistoryCustomerModal(true); }}
             >
-              <MaterialIcons name={historyCustomerId ? 'close' : 'person'} size={16} color={historyCustomerId ? '#FFFFFF' : colors.textSecondary} />
+              <MaterialIcons name={historyCustomerId ? 'close' : 'person'} size={14} color={historyCustomerId ? '#FFFFFF' : colors.textSecondary} />
               <Text style={[S.filterChipText, historyCustomerId && S.filterChipTextActive]}>
-                {historyCustomerLabel ?? tr.selectCustomer}
+                {historyCustomerLabel ?? tr.customer}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[S.filterChip, paymentsOnly ? S.filterChipActive : undefined]}
               onPress={() => setPaymentsOnly(p => !p)}
             >
-              <MaterialIcons name={paymentsOnly ? 'close' : 'payments'} size={16} color={paymentsOnly ? '#FFFFFF' : colors.textSecondary} />
+              <MaterialIcons name={paymentsOnly ? 'close' : 'payments'} size={14} color={paymentsOnly ? '#FFFFFF' : colors.textSecondary} />
               <Text style={[S.filterChipText, paymentsOnly && S.filterChipTextActive]}>
                 {tr.paymentsOnly}
               </Text>
