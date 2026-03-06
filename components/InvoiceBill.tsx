@@ -207,8 +207,8 @@ const S = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  metaLeft: { flex: 1 },
-  metaRight: { alignItems: 'flex-end' },
+  metaLeft: { flex: 1, marginRight: 8 },
+  metaRight: { alignItems: 'flex-end', flexShrink: 0 },
   metaLabel: {
     fontSize: 12,
     color: '#333',

@@ -8,11 +8,11 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 
@@ -73,9 +73,9 @@ export default function ViewBillScreen() {
       headerRight: () => (
         <TouchableOpacity onPress={handleShare} disabled={sharing || loading} style={{ marginRight: Spacing.sm }}>
           {sharing ? (
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={colors.headerText} />
           ) : (
-            <MaterialIcons name="share" size={24} color={colors.primary} />
+            <MaterialIcons name="share" size={24} color={colors.headerText} />
           )}
         </TouchableOpacity>
       ),

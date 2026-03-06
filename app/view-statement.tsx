@@ -2,13 +2,13 @@ import StatementBill from '@/components/StatementBill';
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
-  getCustomerBalance,
-  getCustomerBalanceUpToDate,
-  getCustomerById,
-  getTransactionsByCustomer,
-  getTransactionsByCustomerUpToDate,
-  insertStatement,
-  TransactionWithQuantity,
+    getCustomerBalance,
+    getCustomerBalanceUpToDate,
+    getCustomerById,
+    getTransactionsByCustomer,
+    getTransactionsByCustomerUpToDate,
+    insertStatement,
+    TransactionWithQuantity,
 } from '@/services/database';
 import { shareStatementImage } from '@/utils/whatsapp';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,12 +17,12 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import ViewShot from 'react-native-view-shot';
 
@@ -99,9 +99,9 @@ export default function ViewStatementScreen() {
       headerRight: () => (
         <TouchableOpacity onPress={handleShare} disabled={sharing || loading} style={{ marginRight: Spacing.sm }}>
           {sharing ? (
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={colors.headerText} />
           ) : (
-            <MaterialIcons name="share" size={24} color={colors.primary} />
+            <MaterialIcons name="share" size={24} color={colors.headerText} />
           )}
         </TouchableOpacity>
       ),

@@ -78,9 +78,9 @@ export default function ViewPaymentReceiptScreen() {
       headerRight: () => (
         <TouchableOpacity onPress={handleShare} disabled={sharing} style={{ marginRight: Spacing.sm }}>
           {sharing ? (
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={colors.headerText} />
           ) : (
-            <MaterialIcons name="share" size={24} color={colors.primary} />
+            <MaterialIcons name="share" size={24} color={colors.headerText} />
           )}
         </TouchableOpacity>
       ),
