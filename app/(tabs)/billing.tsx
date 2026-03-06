@@ -563,11 +563,16 @@ export default function BillingScreen() {
     if (item.type === 'credit') {
       router.push({ pathname: '/add-payment', params: { transactionId: String(item.id), customerId: String(item.customer_id) } });
     } else if (item.bill_id) {
-      const orderIds = await getOrderIdsByBillId(db, item.bill_id);
-      if (orderIds.length > 0) {
-        router.push({ pathname: '/view-bill', params: { customerId: String(item.customer_id), orderIds: orderIds.join(','), billId: String(item.bill_id) } });
+      const balance = await getCustomerBalance(db, item.customer_id);
+      if (balance.balance > 0) {
+        router.push({ pathname: '/view-statement', params: { id: String(item.customer_id) } });
       } else {
-        router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });
+        const orderIds = await getOrderIdsByBillId(db, item.bill_id);
+        if (orderIds.length > 0) {
+          router.push({ pathname: '/view-bill', params: { customerId: String(item.customer_id), orderIds: orderIds.join(','), billId: String(item.bill_id) } });
+        } else {
+          router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });
+        }
       }
     } else {
       router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });

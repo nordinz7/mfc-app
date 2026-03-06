@@ -11,9 +11,9 @@ import {
 import { shareStatementImage } from '@/utils/whatsapp';
 import { MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -31,7 +31,6 @@ function makeStyles(c: AppColors) {
       alignItems: 'center',
       paddingVertical: Spacing.xl,
       paddingHorizontal: Spacing.md,
-      paddingBottom: 100,
     },
     loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     billWrapper: {
@@ -42,34 +41,6 @@ function makeStyles(c: AppColors) {
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.15,
       shadowRadius: 8,
-    },
-    bottomBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: c.card,
-      borderTopWidth: 1,
-      borderTopColor: c.border,
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.md,
-      flexDirection: 'row',
-      gap: Spacing.sm,
-    },
-    shareBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: Spacing.xs,
-      backgroundColor: c.whatsapp,
-      paddingVertical: Spacing.md,
-      borderRadius: Radius.md,
-    },
-    shareBtnText: {
-      color: '#FFFFFF',
-      fontSize: FontSizes.md,
-      fontWeight: '700',
     },
     emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing.xl },
     emptyText: { fontSize: FontSizes.lg, color: c.textSecondary, marginTop: Spacing.md, textAlign: 'center' },
@@ -82,6 +53,7 @@ export default function ViewStatementScreen() {
   const { colors, tr, lang, companyName, companyPlace, companyPhone } = useSettings();
   const S = makeStyles(colors);
 
+  const navigation = useNavigation();
   const billRef = useRef<ViewShot>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
@@ -91,25 +63,10 @@ export default function ViewStatementScreen() {
 
   const customerId = Number(id);
 
-  useEffect(() => {
-    (async () => {
-      const [c, txns, bal] = await Promise.all([
-        getCustomerById(db, customerId),
-        getTransactionsByCustomer(db, customerId),
-        getCustomerBalance(db, customerId),
-      ]);
-      setCustomer(c);
-      setTransactions(txns);
-      setBalance(bal);
-      setLoading(false);
-    })();
-  }, [db, customerId]);
-
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (!customer || sharing) return;
     setSharing(true);
     try {
-      // Save statement record
       const earliestDate = [...transactions].sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
       )[0]?.date ?? new Date().toISOString();
@@ -124,18 +81,44 @@ export default function ViewStatementScreen() {
         earliestDate,
       );
 
-      // Capture and share
       if (billRef.current?.capture) {
         const uri = await billRef.current.capture();
         await shareStatementImage(uri, customer.name, lang);
       }
     } catch (error) {
       console.error('Statement share error:', error);
-      // sharing might not open — that's OK
     } finally {
       setSharing(false);
     }
-  };
+  }, [customer, sharing, transactions, balance, db, customerId, lang]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={handleShare} disabled={sharing || loading} style={{ marginRight: Spacing.sm }}>
+          {sharing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <MaterialIcons name="share" size={24} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleShare, sharing, loading, colors]);
+
+  useEffect(() => {
+    (async () => {
+      const [c, txns, bal] = await Promise.all([
+        getCustomerById(db, customerId),
+        getTransactionsByCustomer(db, customerId),
+        getCustomerBalance(db, customerId),
+      ]);
+      setCustomer(c);
+      setTransactions(txns);
+      setBalance(bal);
+      setLoading(false);
+    })();
+  }, [db, customerId]);
 
   if (loading) {
     return (
@@ -175,19 +158,6 @@ export default function ViewStatementScreen() {
           </ViewShot>
         </View>
       </ScrollView>
-
-      <View style={S.bottomBar}>
-        <TouchableOpacity style={S.shareBtn} onPress={handleShare} disabled={sharing}>
-          {sharing ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <MaterialIcons name="share" size={20} color="#FFFFFF" />
-              <Text style={S.shareBtnText}>{tr.shareStatement}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
