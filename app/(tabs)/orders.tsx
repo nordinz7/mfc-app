@@ -311,7 +311,7 @@ export default function OrdersScreen() {
         style={S.card}
         activeOpacity={0.7}
         onPress={() => {
-          if (isBilled) return; // billed orders cannot be edited
+          if (isBilled) { Alert.alert(tr.billing, tr.cannotEditBilled); return; }
           router.push({ pathname: '/edit-order', params: { orderId: item.id, customerName: `${item.customer_name} — ${item.customer_place}`, description: item.description, quantity: String(item.quantity), date: item.date } });
         }}
         onLongPress={() => handleDelete(item)}
