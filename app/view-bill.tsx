@@ -1,17 +1,16 @@
 import InvoiceBill from '@/components/InvoiceBill';
-import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { AppColors, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import { getBillById, getCustomerById, type OrderWithCustomer } from '@/services/database';
 import { shareInvoiceImage } from '@/utils/whatsapp';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -24,7 +23,6 @@ function makeStyles(c: AppColors) {
       alignItems: 'center',
       paddingVertical: Spacing.xl,
       paddingHorizontal: Spacing.md,
-      paddingBottom: 100,
     },
     billWrapper: {
       borderRadius: Radius.lg,
@@ -34,32 +32,6 @@ function makeStyles(c: AppColors) {
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.15,
       shadowRadius: 8,
-    },
-    bottomBar: {
-      position: 'absolute',
-      bottom: 0, left: 0, right: 0,
-      backgroundColor: c.card,
-      borderTopWidth: 1,
-      borderTopColor: c.border,
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.md,
-      flexDirection: 'row',
-      gap: Spacing.sm,
-    },
-    shareBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: Spacing.xs,
-      backgroundColor: c.whatsapp,
-      paddingVertical: Spacing.md,
-      borderRadius: Radius.md,
-    },
-    shareBtnText: {
-      color: '#FFFFFF',
-      fontSize: FontSizes.md,
-      fontWeight: '700',
     },
     loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   });
@@ -76,11 +48,39 @@ export default function ViewBillScreen() {
     billId?: string;
   }>();
 
+  const navigation = useNavigation();
   const billRef = useRef<ViewShot>(null);
   const [sharing, setSharing] = useState(false);
   const [orders, setOrders] = useState<OrderWithCustomer[]>([]);
   const [billNumber, setBillNumber] = useState<string>('');
   const [loading, setLoading] = useState(true);
+
+  const handleShare = useCallback(async () => {
+    if (sharing || !billRef.current?.capture) return;
+    setSharing(true);
+    try {
+      const uri = await billRef.current.capture();
+      await shareInvoiceImage(uri, orders[0]?.customer_name ?? '', lang);
+    } catch (error) {
+      console.error('Bill share error:', error);
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing, orders, lang]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={handleShare} disabled={sharing || loading} style={{ marginRight: Spacing.sm }}>
+          {sharing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <MaterialIcons name="share" size={24} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleShare, sharing, loading, colors]);
 
   useEffect(() => {
     (async () => {
@@ -113,19 +113,6 @@ export default function ViewBillScreen() {
     })();
   }, [db, customerId, orderIds, billId]);
 
-  const handleShare = async () => {
-    if (sharing || !billRef.current?.capture) return;
-    setSharing(true);
-    try {
-      const uri = await billRef.current.capture();
-      await shareInvoiceImage(uri, orders[0]?.customer_name ?? '', lang);
-    } catch (error) {
-      console.error('Bill share error:', error);
-    } finally {
-      setSharing(false);
-    }
-  };
-
   if (loading) {
     return (
       <View style={[S.container, S.loading]}>
@@ -150,19 +137,6 @@ export default function ViewBillScreen() {
           </ViewShot>
         </View>
       </ScrollView>
-
-      <View style={S.bottomBar}>
-        <TouchableOpacity style={S.shareBtn} onPress={handleShare} disabled={sharing}>
-          {sharing ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <MaterialIcons name="share" size={20} color="#FFFFFF" />
-              <Text style={S.shareBtnText}>{tr.sendInvoice}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
