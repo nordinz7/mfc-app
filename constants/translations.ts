@@ -280,6 +280,13 @@ const en = {
   // Period filters
   all: 'All',
   thisYear: 'This Year',
+  // Bill edit
+  editAmount: 'Edit Amount',
+  viewBill: 'View Bill',
+  newAmount: 'New Amount',
+  enterNewAmount: 'Enter the new amount for this order.',
+  amountUpdated: 'Amount Updated',
+  invalidAmount: 'Please enter a valid amount greater than 0.',
 };
 
 const ta: typeof en = {
@@ -550,6 +557,13 @@ const ta: typeof en = {
   // Period filters
   all: 'அனைத்தும்',
   thisYear: 'இந்த ஆண்டு',
+  // Bill edit
+  editAmount: 'தொகையை மாற்று',
+  viewBill: 'பில் பார்',
+  newAmount: 'புதிய தொகை',
+  enterNewAmount: 'இந்த ஆர்டருக்கு புதிய தொகையை உள்ளிடுங்கள்.',
+  amountUpdated: 'தொகை புதுப்பிக்கப்பட்டது',
+  invalidAmount: 'தயவு செய்து 0 க்கு மேல் சரியான தொகையை உள்ளிடவும்.',
 };
 
 export const translations = { en, ta };

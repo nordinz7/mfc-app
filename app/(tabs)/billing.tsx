@@ -1,20 +1,21 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
-    BillItem,
-    billOrders,
-    deleteTransaction,
-    getAllTransactionsWithCustomer,
-    getCustomerBalance,
-    getCustomersWithOrders,
-    getCustomersWithUnbilledOrders,
-    getOrderIdsByBillId,
-    getTransactionsByDateRange,
-    getUnbilledOrders,
-    getUnbilledOrdersByCustomer,
-    getUnbilledOrdersByDate,
-    OrderWithCustomer,
-    TransactionWithCustomer,
+  BillItem,
+  billOrders,
+  deleteTransaction,
+  getAllTransactionsWithCustomer,
+  getCustomerBalance,
+  getCustomersWithOrders,
+  getCustomersWithUnbilledOrders,
+  getOrderIdsByBillId,
+  getTransactionsByDateRange,
+  getUnbilledOrders,
+  getUnbilledOrdersByCustomer,
+  getUnbilledOrdersByDate,
+  OrderWithCustomer,
+  TransactionWithCustomer,
+  updateBilledAmount,
 } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -23,18 +24,18 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useCallback, useMemo, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    Pressable,
-    RefreshControl,
-    SectionList,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface DropdownItem { id: string; label: string }
@@ -332,6 +333,10 @@ export default function BillingScreen() {
   const [historyCustomerSearch, setHistoryCustomerSearch] = useState('');
   const [paymentsOnly, setPaymentsOnly] = useState(false);
 
+  // ── Edit amount modal state ──
+  const [editingTxn, setEditingTxn] = useState<TransactionWithCustomer | null>(null);
+  const [editAmountValue, setEditAmountValue] = useState('');
+
   const [refreshing, setRefreshing] = useState(false);
 
   // ── Load data ──
@@ -570,24 +575,42 @@ export default function BillingScreen() {
     );
   };
 
-  const handleHistoryItemPress = async (item: TransactionWithCustomer) => {
+  const handleEditBilledAmount = (item: TransactionWithCustomer) => {
+    setEditAmountValue(String(item.amount));
+    setEditingTxn(item);
+  };
+
+  const handleSaveEditedAmount = async () => {
+    if (!editingTxn) return;
+    const newAmount = parseFloat(editAmountValue || '0');
+    if (newAmount <= 0 || isNaN(newAmount)) {
+      Alert.alert(tr.required, tr.invalidAmount);
+      return;
+    }
+    await updateBilledAmount(db, editingTxn.id, newAmount);
+    setEditingTxn(null);
+    setEditAmountValue('');
+    loadHistory();
+  };
+
+  const handleViewBill = async (item: TransactionWithCustomer) => {
+    if (item.bill_id) {
+      const orderIds = await getOrderIdsByBillId(db, item.bill_id);
+      if (orderIds.length > 0) {
+        router.push({ pathname: '/view-bill', params: { customerId: String(item.customer_id), orderIds: orderIds.join(','), billId: String(item.bill_id) } });
+        return;
+      }
+    }
+    router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });
+  };
+
+  const handleHistoryItemPress = (item: TransactionWithCustomer) => {
     if (item.type === 'credit') {
       router.push({ pathname: '/add-payment', params: { transactionId: String(item.id), customerId: String(item.customer_id) } });
-    } else if (item.bill_id) {
-      const balance = await getCustomerBalance(db, item.customer_id);
-      if (balance.balance > 0) {
-        router.push({ pathname: '/view-statement', params: { id: String(item.customer_id) } });
-      } else {
-        const orderIds = await getOrderIdsByBillId(db, item.bill_id);
-        if (orderIds.length > 0) {
-          router.push({ pathname: '/view-bill', params: { customerId: String(item.customer_id), orderIds: orderIds.join(','), billId: String(item.bill_id) } });
-        } else {
-          router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });
-        }
-      }
-    } else {
-      router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });
+      return;
     }
+    // Debit (billed order) — directly open edit amount
+    handleEditBilledAmount(item);
   };
 
   const handleInvoice = (item: TransactionWithCustomer) => {
@@ -937,6 +960,43 @@ export default function BillingScreen() {
           )}
         </>
       )}
+
+      {/* ─── EDIT AMOUNT MODAL ─── */}
+      <Modal visible={!!editingTxn} transparent animationType="fade" onRequestClose={() => setEditingTxn(null)}>
+        <Pressable style={S.modalOverlay} onPress={() => setEditingTxn(null)}>
+          <Pressable style={S.modalContent} onPress={() => {}}>
+            <View style={S.modalHeader}>
+              <Text style={S.modalTitle}>{tr.editAmount}</Text>
+              <TouchableOpacity onPress={() => setEditingTxn(null)}>
+                <Text style={S.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: Spacing.lg, gap: Spacing.md }}>
+              <Text style={{ fontSize: FontSizes.sm, color: colors.textSecondary }}>
+                {editingTxn?.customer_name} — {editingTxn?.description}
+              </Text>
+              <TextInput
+                style={[S.searchInput, { fontWeight: '700', fontSize: FontSizes.xl, textAlign: 'center', marginHorizontal: 0, marginTop: 0 }]}
+                value={editAmountValue}
+                onChangeText={setEditAmountValue}
+                keyboardType="decimal-pad"
+                placeholder="₹"
+                placeholderTextColor={colors.textMuted}
+                autoFocus
+              />
+              <TouchableOpacity
+                style={[S.billBtn, !editAmountValue && S.billBtnDisabled]}
+                onPress={handleSaveEditedAmount}
+                disabled={!editAmountValue}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="check" size={22} color="#FFFFFF" />
+                <Text style={S.billBtnText}>{tr.save}</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
