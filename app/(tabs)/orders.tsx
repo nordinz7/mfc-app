@@ -35,6 +35,7 @@ function makeStyles(c: AppColors) {
     container:    { flex: 1, backgroundColor: c.background },
     filterRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       paddingHorizontal: Spacing.md,
       paddingVertical: Spacing.sm,
@@ -45,6 +46,7 @@ function makeStyles(c: AppColors) {
     },
     filterChip: {
       flexDirection: 'row', alignItems: 'center', gap: 4,
+      flexShrink: 0,
       paddingHorizontal: Spacing.md, paddingVertical: 6,
       borderRadius: 20,
       backgroundColor: c.filterInactive,

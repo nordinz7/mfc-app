@@ -43,13 +43,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="index"
-        options={{
-          title: tr.customers,
-          tabBarIcon: ({ color }) => <TabIcon name="people" color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="billing"
         options={{
           title: tr.billing,
@@ -57,10 +50,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="reports"
+        name="index"
         options={{
-          title: tr.reports,
-          tabBarIcon: ({ color }) => <TabIcon name="assessment" color={color} />,
+          title: tr.customers,
+          tabBarIcon: ({ color }) => <TabIcon name="people" color={color} />,
         }}
       />
       <Tabs.Screen
