@@ -1,15 +1,14 @@
 import PaymentReceipt from '@/components/PaymentReceipt';
-import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { AppColors, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
 import { sharePaymentReceiptImage } from '@/utils/whatsapp';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     ScrollView,
     StyleSheet,
-    Text,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -22,7 +21,6 @@ function makeStyles(c: AppColors) {
       alignItems: 'center',
       paddingVertical: Spacing.xl,
       paddingHorizontal: Spacing.md,
-      paddingBottom: 100,
     },
     billWrapper: {
       borderRadius: Radius.lg,
@@ -33,41 +31,14 @@ function makeStyles(c: AppColors) {
       shadowOpacity: 0.15,
       shadowRadius: 8,
     },
-    bottomBar: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: c.card,
-      borderTopWidth: 1,
-      borderTopColor: c.border,
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.md,
-      flexDirection: 'row',
-      gap: Spacing.sm,
-    },
-    shareBtn: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: Spacing.xs,
-      backgroundColor: c.whatsapp,
-      paddingVertical: Spacing.md,
-      borderRadius: Radius.md,
-    },
-    shareBtnText: {
-      color: '#FFFFFF',
-      fontSize: FontSizes.md,
-      fontWeight: '700',
-    },
   });
 }
 
 export default function ViewPaymentReceiptScreen() {
-  const { colors, tr, lang, companyName, companyPlace, companyPhone } = useSettings();
+  const { colors, lang, companyName, companyPlace, companyPhone } = useSettings();
   const S = makeStyles(colors);
 
+  const navigation = useNavigation();
   const {
     customerName,
     customerPlace,
@@ -87,7 +58,7 @@ export default function ViewPaymentReceiptScreen() {
   const receiptRef = useRef<ViewShot>(null);
   const [sharing, setSharing] = useState(false);
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (sharing) return;
     setSharing(true);
     try {
@@ -100,7 +71,21 @@ export default function ViewPaymentReceiptScreen() {
     } finally {
       setSharing(false);
     }
-  };
+  }, [sharing, customerName, lang]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={handleShare} disabled={sharing} style={{ marginRight: Spacing.sm }}>
+          {sharing ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <MaterialIcons name="share" size={24} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleShare, sharing, colors]);
 
   return (
     <View style={S.container}>
@@ -121,19 +106,6 @@ export default function ViewPaymentReceiptScreen() {
           </ViewShot>
         </View>
       </ScrollView>
-
-      <View style={S.bottomBar}>
-        <TouchableOpacity style={S.shareBtn} onPress={handleShare} disabled={sharing}>
-          {sharing ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <MaterialIcons name="share" size={20} color="#FFFFFF" />
-              <Text style={S.shareBtnText}>{tr.sendPaymentReceipt}</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
