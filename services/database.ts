@@ -551,6 +551,24 @@ export async function deleteOrder(
   });
 }
 
+export async function unbillOrder(
+  db: SQLite.SQLiteDatabase,
+  orderId: number,
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    const order = await db.getFirstAsync<{ transaction_id: number | null }>(
+      `SELECT transaction_id FROM orders WHERE id = ?`,
+      [orderId]
+    );
+    if (order?.transaction_id === null || order?.transaction_id === undefined) {
+      throw new Error('Order is not billed');
+    }
+    await db.runAsync(`DELETE FROM statement_transactions WHERE transaction_id = ?`, [order.transaction_id]);
+    await db.runAsync(`DELETE FROM transactions WHERE id = ?`, [order.transaction_id]);
+    await db.runAsync(`UPDATE orders SET transaction_id = NULL, amount = 0 WHERE id = ?`, [orderId]);
+  });
+}
+
 // ─── Billing ─────────────────────────────────────────────────────────────────
 
 export interface BillItem {

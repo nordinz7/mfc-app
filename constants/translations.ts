@@ -288,6 +288,11 @@ const en = {
   enterNewAmount: 'Enter the new amount for this order.',
   amountUpdated: 'Amount Updated',
   invalidAmount: 'Please enter a valid amount greater than 0.',
+  // Unbill
+  unbillOrder: 'Unbill Order',
+  unbillOrderMsg: 'This will remove the bill for this order so you can edit the quantity and re-bill it. Continue?',
+  unbillSuccess: 'Order unbilled successfully. You can now edit it and re-bill.',
+  unbill: 'Unbill',
 };
 
 const ta: typeof en = {
@@ -566,6 +571,11 @@ const ta: typeof en = {
   enterNewAmount: 'இந்த ஆர்டருக்கு புதிய தொகையை உள்ளிடுங்கள்.',
   amountUpdated: 'தொகை புதுப்பிக்கப்பட்டது',
   invalidAmount: 'தயவு செய்து 0 க்கு மேல் சரியான தொகையை உள்ளிடவும்.',
+  // Unbill
+  unbillOrder: 'பில்லை நீக்கு',
+  unbillOrderMsg: 'இது இந்த ஆர்டரின் பில்லை நீக்கும், பிறகு அளவை மாற்றி மீண்டும் பில் செய்யலாம். தொடரவா?',
+  unbillSuccess: 'பில் வெற்றிகரமாக நீக்கப்பட்டது. இப்போது திருத்தி மீண்டும் பில் செய்யலாம்.',
+  unbill: 'பில் நீக்கு',
 };
 
 export const translations = { en, ta };

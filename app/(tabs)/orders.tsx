@@ -7,6 +7,7 @@ import {
     getCustomersWithOrders,
     getOrdersByDateRange,
     OrderWithCustomer,
+    unbillOrder,
 } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -295,13 +296,30 @@ export default function OrdersScreen() {
   };
 
   const handleDelete = (order: OrderWithCustomer) => {
-    if (order.transaction_id !== null) return; // billed orders cannot be deleted
+    if (order.transaction_id !== null) return; // billed orders use handleUnbill
     Alert.alert(tr.deleteOrder, tr.deleteOrderMsg(order.customer_name), [
       { text: tr.cancel, style: 'cancel' },
       {
         text: tr.delete, style: 'destructive', onPress: async () => {
           await deleteOrder(db, order.id);
           load();
+        },
+      },
+    ]);
+  };
+
+  const handleUnbill = (order: OrderWithCustomer) => {
+    Alert.alert(tr.unbillOrder, tr.unbillOrderMsg, [
+      { text: tr.cancel, style: 'cancel' },
+      {
+        text: tr.unbill, style: 'destructive', onPress: async () => {
+          try {
+            await unbillOrder(db, order.id);
+            Alert.alert(tr.unbillOrder, tr.unbillSuccess);
+            load();
+          } catch {
+            Alert.alert('Error', tr.couldNotSave);
+          }
         },
       },
     ]);
@@ -321,10 +339,10 @@ export default function OrdersScreen() {
         style={S.card}
         activeOpacity={0.7}
         onPress={() => {
-          if (isBilled) { Alert.alert(tr.billing, tr.cannotEditBilled); return; }
+          if (isBilled) { handleUnbill(item); return; }
           router.push({ pathname: '/edit-order', params: { orderId: item.id, customerName: `${item.customer_name} — ${item.customer_place}`, description: item.description, quantity: String(item.quantity), date: item.date } });
         }}
-        onLongPress={() => handleDelete(item)}
+        onLongPress={() => isBilled ? handleUnbill(item) : handleDelete(item)}
       >
         <View style={S.qtyBadge}>
           <Text style={S.qtyNum}>{item.quantity || 0}</Text>
