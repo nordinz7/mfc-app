@@ -3,18 +3,19 @@ import { useSettings } from '@/contexts/SettingsContext';
 import {
   Customer, TransactionWithQuantity,
   deleteTransaction,
-  getCustomerBalance,
-  getCustomerById, getTransactionsByCustomer,
+  getCustomerBalance, getCustomerBalanceForPeriod,
+  getCustomerById, getTransactionsByCustomer, getTransactionsByCustomerForPeriod,
 } from '@/services/database';
 import { MaterialIcons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { endOfDay, format, startOfDay, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text, TouchableOpacity,
   View,
@@ -118,6 +119,21 @@ function makeStyles(c: AppColors) {
     txnRunningBal: { fontSize: FontSizes.xs, color: c.textMuted, marginTop: 2 },
     emptyWrap:     { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
     emptyText:     { fontSize: FontSizes.lg, color: c.textSecondary, marginTop: Spacing.md },
+    filterRow: {
+      flexDirection: 'row',
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: Spacing.xs,
+      gap: Spacing.xs,
+    },
+    filterChip: {
+      paddingHorizontal: Spacing.sm,
+      paddingVertical: 3,
+      borderRadius: 14,
+      backgroundColor: c.filterInactive ?? c.border,
+    },
+    filterChipActive: { backgroundColor: c.primary },
+    filterChipText: { fontSize: FontSizes.xs, fontWeight: '600', color: c.textSecondary },
+    filterChipTextActive: { color: '#FFFFFF' },
   });
 }
 
@@ -132,21 +148,42 @@ export default function CustomerDetailScreen() {
   const [transactions, setTransactions] = useState<TransactionWithQuantity[]>([]);
   const [balance, setBalance] = useState({ totalDebit: 0, totalCredit: 0, balance: 0 });
   const [refreshing, setRefreshing] = useState(false);
+  const [filterPeriod, setFilterPeriod] = useState<'all' | 'today' | 'week' | 'month' | 'year'>('all');
 
   const customerId = Number(id);
 
+  const getDateRange = useCallback(() => {
+    const now = new Date();
+    const end = endOfDay(now).toISOString();
+    switch (filterPeriod) {
+      case 'today':  return { start: startOfDay(now).toISOString(), end };
+      case 'week':   return { start: startOfWeek(now, { weekStartsOn: 1 }).toISOString(), end };
+      case 'month':  return { start: startOfMonth(now).toISOString(), end };
+      case 'year':   return { start: startOfYear(now).toISOString(), end };
+      default:       return null;
+    }
+  }, [filterPeriod]);
+
   const load = useCallback(async () => {
-    const [c, txns, bal] = await Promise.all([
-      getCustomerById(db, customerId),
-      getTransactionsByCustomer(db, customerId),
-      getCustomerBalance(db, customerId),
-    ]);
+    const c = await getCustomerById(db, customerId);
+    const range = getDateRange();
+    const [txns, bal] = range
+      ? await Promise.all([
+          getTransactionsByCustomerForPeriod(db, customerId, range.start, range.end),
+          getCustomerBalanceForPeriod(db, customerId, range.start, range.end),
+        ])
+      : await Promise.all([
+          getTransactionsByCustomer(db, customerId),
+          getCustomerBalance(db, customerId),
+        ]);
     setCustomer(c);
     setTransactions(txns);
     setBalance(bal);
-  }, [db, customerId]);
+  }, [db, customerId, getDateRange]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useEffect(() => { load(); }, [filterPeriod]);
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
@@ -275,6 +312,25 @@ export default function CustomerDetailScreen() {
           <Text style={S.actionText}>{tr.recordPayment}</Text>
         </TouchableOpacity>
       </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={S.filterRow}>
+        {(['all', 'today', 'week', 'month', 'year'] as const).map(period => (
+          <TouchableOpacity
+            key={period}
+            activeOpacity={0.7}
+            style={[S.filterChip, filterPeriod === period && S.filterChipActive]}
+            onPress={() => setFilterPeriod(period)}
+          >
+            <Text style={[S.filterChipText, filterPeriod === period && S.filterChipTextActive]}>
+              {period === 'all' ? tr.all
+                : period === 'today' ? tr.today
+                : period === 'week' ? tr.thisWeek
+                : period === 'month' ? tr.thisMonth
+                : tr.thisYear}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       <Text style={S.sectionTitle}>{tr.transactionHistory}</Text>
 

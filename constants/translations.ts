@@ -277,6 +277,9 @@ const en = {
   // Payment receipt
   paymentReceipt: 'Payment Receipt',
   sendPaymentReceipt: 'Send Receipt',
+  // Period filters
+  all: 'All',
+  thisYear: 'This Year',
 };
 
 const ta: typeof en = {
@@ -544,6 +547,9 @@ const ta: typeof en = {
   // Payment receipt
   paymentReceipt: 'பணம் பெற்ற ரசீது',
   sendPaymentReceipt: 'ரசீது அனுப்பு',
+  // Period filters
+  all: 'அனைத்தும்',
+  thisYear: 'இந்த ஆண்டு',
 };
 
 export const translations = { en, ta };
