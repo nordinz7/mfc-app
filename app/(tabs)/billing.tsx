@@ -8,6 +8,7 @@ import {
     getCustomerBalance,
     getCustomersWithOrders,
     getCustomersWithUnbilledOrders,
+    getOrderIdsByBillId,
     getTransactionsByDateRange,
     getUnbilledOrders,
     getUnbilledOrdersByCustomer,
@@ -558,13 +559,28 @@ export default function BillingScreen() {
     );
   };
 
+  const handleHistoryItemPress = async (item: TransactionWithCustomer) => {
+    if (item.type === 'credit') {
+      router.push({ pathname: '/add-payment', params: { transactionId: String(item.id), customerId: String(item.customer_id) } });
+    } else if (item.bill_id) {
+      const orderIds = await getOrderIdsByBillId(db, item.bill_id);
+      if (orderIds.length > 0) {
+        router.push({ pathname: '/view-bill', params: { customerId: String(item.customer_id), orderIds: orderIds.join(','), billId: String(item.bill_id) } });
+      } else {
+        router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });
+      }
+    } else {
+      router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } });
+    }
+  };
+
   const renderHistoryItem = ({ item }: { item: TransactionWithCustomer }) => {
     const isCredit = item.type === 'credit';
     return (
       <TouchableOpacity
         style={S.card}
         activeOpacity={0.7}
-        onPress={() => router.push({ pathname: '/customer-detail', params: { id: String(item.customer_id) } })}
+        onPress={() => handleHistoryItemPress(item)}
         onLongPress={() => isCredit && handleDeleteTransaction(item)}
       >
         <View style={[S.dateBadge, isCredit ? S.dateBadgeCredit : S.dateBadgeDebit]}>

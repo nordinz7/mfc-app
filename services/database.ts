@@ -726,6 +726,31 @@ export async function deleteTransaction(
   await db.runAsync(`DELETE FROM transactions WHERE id = ?`, [id]);
 }
 
+export async function getOrderIdsByBillId(
+  db: SQLite.SQLiteDatabase, billId: number,
+): Promise<number[]> {
+  const rows = await db.getAllAsync<{ id: number }>(
+    `SELECT id FROM orders WHERE bill_id = ?`, [billId]
+  );
+  return rows.map(r => r.id);
+}
+
+export async function updatePayment(
+  db: SQLite.SQLiteDatabase, transactionId: number, amount: number, description: string, date: string, billId?: number | null,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE transactions SET amount = ?, description = ?, date = ?, bill_id = ?, updated_at = ? WHERE id = ?`,
+    [amount, description.trim(), date, billId ?? null, now, transactionId]
+  );
+}
+
+export async function getTransactionById(
+  db: SQLite.SQLiteDatabase, id: number,
+): Promise<Transaction | null> {
+  return db.getFirstAsync<Transaction>(`SELECT * FROM transactions WHERE id = ?`, [id]);
+}
+
 export async function getTransactionsByDateRange(
   db: SQLite.SQLiteDatabase, from: string, to: string,
 ): Promise<TransactionWithCustomer[]> {

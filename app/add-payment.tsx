@@ -1,10 +1,10 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { useSettings } from '@/contexts/SettingsContext';
-import { Customer, getActiveCustomers, getCustomerOutstandingBills, insertPayment } from '@/services/database';
+import { Customer, getActiveCustomers, getCustomerOutstandingBills, getTransactionById, insertPayment, updatePayment } from '@/services/database';
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useEffect, useState } from 'react';
 import {
@@ -106,9 +106,11 @@ function makeStyles(c: AppColors) {
 export default function AddPaymentScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
-  const params = useLocalSearchParams<{ customerId?: string; customerName?: string; customerPlace?: string }>();
+  const params = useLocalSearchParams<{ customerId?: string; customerName?: string; customerPlace?: string; transactionId?: string }>();
+  const navigation = useNavigation();
   const { colors, tr } = useSettings();
   const S = makeStyles(colors);
+  const isEdit = !!params.transactionId;
 
   const [customers, setCustomers]           = useState<Customer[]>([]);
   const [selectedCustomer, setSelected]     = useState<Customer | null>(null);
@@ -135,16 +137,37 @@ export default function AddPaymentScreen() {
   };
 
   useEffect(() => {
-    getActiveCustomers(db).then((list) => {
+    if (isEdit) navigation.setOptions({ title: tr.editPayment });
+  }, [isEdit, navigation, tr]);
+
+  useEffect(() => {
+    (async () => {
+      const list = await getActiveCustomers(db);
       setCustomers(list);
-      if (params.customerId) {
+
+      if (isEdit) {
+        const txn = await getTransactionById(db, Number(params.transactionId));
+        if (txn) {
+          const found = list.find(c => c.id === txn.customer_id);
+          if (found) {
+            setSelected(found);
+            await loadOutstandingBills(found.id);
+          }
+          setAmount(String(txn.amount));
+          setDescription(txn.description);
+          setPaymentDate(new Date(txn.date));
+          if (txn.bill_id) setSelectedBillId(txn.bill_id);
+          const method = PAYMENT_METHODS.find(m => m.label === txn.description);
+          setSelectedMethod(method ? method.key : null);
+        }
+      } else if (params.customerId) {
         const found = list.find(c => c.id === Number(params.customerId));
         if (found) {
           setSelected(found);
           loadOutstandingBills(found.id);
         }
       }
-    });
+    })();
   }, [db]);
 
   const handleMethodSelect = (method: typeof PAYMENT_METHODS[number]) => {
@@ -163,7 +186,11 @@ export default function AddPaymentScreen() {
     if (!amount || isNaN(num) || num <= 0) { Alert.alert(tr.required, tr.enterAmount); return; }
     setSaving(true);
     try {
-      await insertPayment(db, selectedCustomer.id, num, description || tr.paymentReceived, paymentDate.toISOString(), selectedBillId);
+      if (isEdit) {
+        await updatePayment(db, Number(params.transactionId), num, description || tr.paymentReceived, paymentDate.toISOString(), selectedBillId);
+      } else {
+        await insertPayment(db, selectedCustomer.id, num, description || tr.paymentReceived, paymentDate.toISOString(), selectedBillId);
+      }
       router.back();
     } catch {
       Alert.alert('Error', tr.couldNotSave);
@@ -262,7 +289,7 @@ export default function AddPaymentScreen() {
         </View>
         <TouchableOpacity style={[S.saveButton, saving && S.saveButtonDisabled]} onPress={handleSave} disabled={saving}>
           <MaterialIcons name="payments" size={24} color="#FFFFFF" />
-          <Text style={S.saveButtonText}>{saving ? tr.saving : tr.recordPayment}</Text>
+          <Text style={S.saveButtonText}>{saving ? tr.saving : isEdit ? tr.updatePayment : tr.recordPayment}</Text>
         </TouchableOpacity>
       </ScrollView>
 
