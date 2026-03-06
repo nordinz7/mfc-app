@@ -162,14 +162,21 @@ const StatementBill = forwardRef<View, StatementBillProps>(
           </View>
         </View>
 
-        <View style={S.balanceBar}>
-          <Text style={S.balanceLabel}>
-            {balance > 0 ? L.balanceDue : balance < 0 ? L.balanceCredit : L.allSettled}
-          </Text>
-          <Text style={S.balanceValue}>
-            ₹{Math.round(Math.abs(balance))}
-          </Text>
-        </View>
+        {balance !== 0 ? (
+          <View style={[S.balanceBar, balance < 0 && S.balanceBarCredit]}>
+            <Text style={[S.balanceLabel, balance < 0 && S.balanceLabelCredit]}>
+              {balance > 0 ? L.balanceDue : L.balanceCredit}
+            </Text>
+            <Text style={[S.balanceValue, balance < 0 && S.balanceValueCredit]}>
+              ₹{Math.round(Math.abs(balance))}
+            </Text>
+          </View>
+        ) : (
+          <View style={S.settledBar}>
+            <Text style={S.settledCheck}>✓</Text>
+            <Text style={S.settledLabel}>{L.allSettled}</Text>
+          </View>
+        )}
 
         {/* ─── Footer ────────────────────────────── */}
         <View style={S.footer}>
@@ -192,6 +199,10 @@ const BORDER = '#C5CAE9';
 const TEXT = '#212121';
 const TEXT_LIGHT = '#546E7A';
 const BALANCE_RED = '#C62828';
+const SUCCESS_GREEN = '#2E7D32';
+const SUCCESS_BG = '#E8F5E9';
+const CREDIT_BLUE = '#1565C0';
+const CREDIT_BG = '#E3F2FD';
 
 const S = StyleSheet.create({
   container: {
@@ -349,15 +360,48 @@ const S = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 6,
   },
+  balanceBarCredit: {
+    backgroundColor: CREDIT_BG,
+  },
   balanceLabel: {
     fontSize: 14,
     color: BALANCE_RED,
     fontWeight: '800',
   },
+  balanceLabelCredit: {
+    color: CREDIT_BLUE,
+  },
   balanceValue: {
     fontSize: 18,
     fontWeight: '900',
     color: BALANCE_RED,
+  },
+  balanceValueCredit: {
+    color: CREDIT_BLUE,
+  },
+  // Settled
+  settledBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: SUCCESS_BG,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 6,
+    gap: 8,
+  },
+  settledCheck: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: SUCCESS_GREEN,
+  },
+  settledLabel: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: SUCCESS_GREEN,
+    letterSpacing: 0.5,
   },
   // Footer
   footer: {
