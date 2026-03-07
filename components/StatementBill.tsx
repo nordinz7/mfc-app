@@ -138,26 +138,20 @@ const StatementBill = forwardRef<View, StatementBillProps>(
           );
         })}
 
-        {sorted.length < 3 && <View style={{ height: 16 }} />}
-
-        {/* ─── Balance ──────────────────────────── */}
-        <View style={S.summaryDivider} />
-
-        {balance !== 0 ? (
-          <View style={[S.balanceBar, balance < 0 && S.balanceBarCredit]}>
-            <Text style={[S.balanceLabel, balance < 0 && S.balanceLabelCredit]}>
-              {balance > 0 ? L.balanceDue : L.balanceCredit}
-            </Text>
-            <Text style={[S.balanceValue, balance < 0 && S.balanceValueCredit]}>
-              ₹{Math.round(Math.abs(balance))}
-            </Text>
-          </View>
-        ) : (
-          <View style={S.settledBar}>
-            <Text style={S.settledCheck}>✓</Text>
-            <Text style={S.settledLabel}>{L.allSettled}</Text>
-          </View>
-        )}
+        {/* ─── Balance Row ─────────────────────── */}
+        <View
+          style={[
+            S.balanceRow,
+            balance > 0 ? S.balanceRowDue : balance < 0 ? S.balanceRowCredit : S.balanceRowSettled,
+          ]}
+        >
+          <Text style={[S.balanceRowLabel, balance > 0 ? S.balanceTextDue : balance < 0 ? S.balanceTextCredit : S.balanceTextSettled]}>
+            {balance > 0 ? L.balanceDue : balance < 0 ? L.balanceCredit : `✓ ${L.allSettled}`}
+          </Text>
+          <Text style={[S.balanceRowValue, balance > 0 ? S.balanceTextDue : balance < 0 ? S.balanceTextCredit : S.balanceTextSettled]}>
+            ₹{Math.round(Math.abs(balance))}
+          </Text>
+        </View>
 
         {/* ─── Footer ────────────────────────────── */}
         <View style={S.footer}>
@@ -299,68 +293,24 @@ const S = StyleSheet.create({
   colDate: { width: 44 },
   colDesc: { flex: 1, paddingHorizontal: 6 },
   colAmt: { width: 64, textAlign: 'right' },
-  // Summary
-  summaryDivider: {
-    borderTopWidth: 1.5,
-    borderTopColor: BORDER,
-  },
-  // Balance
-  balanceBar: {
+  // Balance row
+  balanceRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFEBEE',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderTopWidth: 1.5,
+    borderTopColor: BORDER,
   },
-  balanceBarCredit: {
-    backgroundColor: CREDIT_BG,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: BALANCE_RED,
-    fontWeight: '800',
-  },
-  balanceLabelCredit: {
-    color: CREDIT_BLUE,
-  },
-  balanceValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: BALANCE_RED,
-  },
-  balanceValueCredit: {
-    color: CREDIT_BLUE,
-  },
-  // Settled
-  settledBar: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: SUCCESS_BG,
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 6,
-    gap: 8,
-  },
-  settledCheck: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: SUCCESS_GREEN,
-  },
-  settledLabel: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: SUCCESS_GREEN,
-    letterSpacing: 0.5,
-  },
+  balanceRowDue: { backgroundColor: '#FFEBEE' },
+  balanceRowCredit: { backgroundColor: CREDIT_BG },
+  balanceRowSettled: { backgroundColor: SUCCESS_BG },
+  balanceRowLabel: { fontSize: 13, fontWeight: '800' },
+  balanceRowValue: { fontSize: 15, fontWeight: '900' },
+  balanceTextDue: { color: BALANCE_RED },
+  balanceTextCredit: { color: CREDIT_BLUE },
+  balanceTextSettled: { color: SUCCESS_GREEN },
   // Footer
   footer: {
     alignItems: 'center',
