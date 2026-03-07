@@ -121,18 +121,20 @@ function makeStyles(c: AppColors) {
     emptyText:     { fontSize: FontSizes.lg, color: c.textSecondary, marginTop: Spacing.md },
     filterRow: {
       flexDirection: 'row',
-      paddingHorizontal: Spacing.sm,
-      paddingVertical: Spacing.xs,
-      gap: Spacing.xs,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.sm,
+      gap: Spacing.sm,
     },
     filterChip: {
-      paddingHorizontal: Spacing.sm,
-      paddingVertical: 3,
-      borderRadius: 14,
+      paddingHorizontal: Spacing.md,
+      paddingVertical: Spacing.xs,
+      borderRadius: Radius.md,
       backgroundColor: c.filterInactive ?? c.border,
+      minWidth: 48,
+      alignItems: 'center' as const,
     },
     filterChipActive: { backgroundColor: c.primary },
-    filterChipText: { fontSize: FontSizes.xs, fontWeight: '600', color: c.textSecondary },
+    filterChipText: { fontSize: FontSizes.sm, fontWeight: '600', color: c.textSecondary },
     filterChipTextActive: { color: '#FFFFFF' },
   });
 }

@@ -64,7 +64,7 @@ export default function ViewPaymentReceiptScreen() {
     try {
       if (receiptRef.current?.capture) {
         const uri = await receiptRef.current.capture();
-        await sharePaymentReceiptImage(uri, customerName ?? '', lang);
+        await sharePaymentReceiptImage(uri, customerName ?? '', lang, customerPhone);
       }
     } catch (error) {
       console.error('Payment receipt share error:', error);
