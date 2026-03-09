@@ -23,25 +23,35 @@ There is no test framework configured.
 ### Routing (Expo Router — file-based)
 
 ```
-app/_layout.tsx          → Root: SettingsProvider > SQLiteProvider > Stack
-app/(tabs)/_layout.tsx   → Bottom tabs: Customers, Orders, Settings
-app/(tabs)/index.tsx     → Customers list
-app/(tabs)/orders.tsx    → Orders list with date filters
-app/(tabs)/settings.tsx  → Theme, language, company details
-app/(tabs)/backup.tsx    → Backup/restore (hidden from tab bar, accessed via settings)
-app/add-customer.tsx     → Modal
-app/edit-customer.tsx    → Modal
-app/add-order.tsx        → Modal
-app/add-payment.tsx      → Modal
-app/customer-detail.tsx  → Stack screen
-app/view-statement.tsx   → Stack screen
+app/_layout.tsx              → Root: SettingsProvider > SQLiteProvider > Stack
+app/(tabs)/_layout.tsx       → Bottom tabs: Customers, Orders, Settings
+app/(tabs)/index.tsx         → Customers list
+app/(tabs)/orders.tsx        → Orders list with date filters
+app/(tabs)/billing.tsx       → Billing management (unbilled/billed/payments tabs)
+app/(tabs)/settings.tsx      → Theme, language, company details
+app/(tabs)/backup.tsx        → Backup/restore (hidden from tab bar, accessed via settings)
+app/add-customer.tsx         → Modal: add customer
+app/edit-customer.tsx        → Modal: edit customer
+app/add-order.tsx            → Modal: add single order
+app/edit-order.tsx           → Modal: edit order (read-only if billed)
+app/bulk-orders.tsx          → Modal: add orders to multiple customers at once
+app/add-payment.tsx          → Modal: record payment
+app/bulk-payments.tsx        → Modal: record payments for multiple customers
+app/customer-detail.tsx      → Stack screen: customer profile, orders, balance
+app/view-statement.tsx       → Stack screen: account statement
+app/preview-statement.tsx    → Stack screen: statement preview with StatementBill
+app/view-invoice.tsx         → Stack screen: quick invoice sharing
+app/view-bill.tsx            → Stack screen: multi-order bill generation
+app/view-payment-receipt.tsx → Stack screen: payment receipt sharing
+app/reports.tsx              → Modal: daily summaries, outstanding balances
+app/developer.tsx            → Modal: DB stats, raw SQL query tool
 ```
 
 ### Data Layer
 
 - **Database**: `expo-sqlite` with WAL mode and foreign keys enabled. All CRUD lives in `services/database.ts`. The DB is named `mfc.db` and initialized via `initDatabase()` passed to `<SQLiteProvider onInit>`.
-- **Schema**: 5 tables — `customers`, `orders`, `transactions` (double-entry ledger with debit/credit types), `statements`, `statement_transactions` (junction). Migrations use `ALTER TABLE` wrapped in try-catch for idempotency.
-- **Types**: All DB row interfaces (`Customer`, `Order`, `Transaction`, `Statement`, etc.) are exported from `services/database.ts`.
+- **Schema**: 6 tables — `customers`, `orders`, `transactions` (double-entry ledger with debit/credit types), `statements`, `statement_transactions` (junction), `bills` (invoice grouping with bill numbers). Migrations use `ALTER TABLE` wrapped in try-catch for idempotency.
+- **Types**: All DB row interfaces (`Customer`, `Order`, `Transaction`, `Statement`, `Bill`, `CustomerWithBalance`, `OrderWithCustomer`, `TransactionWithCustomer`, etc.) are exported from `services/database.ts`.
 - **No remote API** — everything is local SQLite + AsyncStorage.
 
 ### State Management
@@ -57,10 +67,17 @@ All components use `StyleSheet.create()` via a `makeStyles(colors: AppColors)` f
 
 Two languages: English (`en`) and Tamil (`ta`), defined in `constants/translations.ts`. The `Lang` type is `'en' | 'ta'`. Dynamic strings use function interpolation (e.g., `removeCustomerMsg: (name: string) => \`...\``). Access translations via `useSettings().tr`.
 
+### Shared Components
+
+- **DateStrip** (`components/DateStrip.tsx`): horizontal scrollable date picker (±180 days)
+- **InvoiceBill** (`components/InvoiceBill.tsx`): itemized bill template, single or multi-order, bilingual
+- **PaymentReceipt** (`components/PaymentReceipt.tsx`): payment receipt template with ViewShot integration
+- **StatementBill** (`components/StatementBill.tsx`): account statement template with running balance
+
 ### External Integrations
 
-- **WhatsApp** (`utils/whatsapp.ts`): deep-links for sending invoices and statements via `whatsapp://send?phone=...&text=...`
-- **Backup** (`utils/backup.ts`): JSON export/import of all tables, with Google Drive sharing via `expo-sharing`
+- **WhatsApp** (`utils/whatsapp.ts`): deep-links for sending invoices, bills, receipts, and statements via `whatsapp://send?phone=...&text=...`. Image sharing via ViewShot capture.
+- **Backup** (`utils/backup.ts`): JSON export/import of all tables, with local backup management and Google Drive sharing via `expo-sharing`
 - **Contacts** (`expo-contacts`): bulk import phone contacts as customers with duplicate detection
 
 ## Conventions
