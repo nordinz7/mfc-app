@@ -1,4 +1,5 @@
 import { AppColors, FontSizes, Radius, Spacing } from '@/constants/theme';
+import Constants from 'expo-constants';
 import { Lang } from '@/constants/translations';
 import { useSettings } from '@/contexts/SettingsContext';
 import { createAndShareBackup, getLastLocalBackupDate, pickAndRestoreBackup } from '@/utils/backup';
@@ -58,6 +59,7 @@ function makeStyles(c: AppColors) {
     appIcon:    { width: 64, height: 64, borderRadius: 16 },
     appName:    { fontSize: FontSizes.xxl, fontWeight: '800', color: c.text, marginTop: Spacing.md },
     appVersion: { fontSize: FontSizes.sm, color: c.textMuted, marginTop: Spacing.xs },
+    appBuild:   { fontSize: FontSizes.xs, color: c.textMuted, marginTop: Spacing.xs, opacity: 0.6 },
   });
 }
 
@@ -349,8 +351,11 @@ export default function SettingsScreen() {
       {/* App info */}
       <TouchableOpacity style={S.appInfoCard} onPress={handleDevTap} activeOpacity={0.8}>
         <Image source={require('@/assets/images/icon.png')} style={S.appIcon} />
-        <Text style={S.appName}>MFC App</Text>
-        <Text style={S.appVersion}>v2.0.0 • Local Storage</Text>
+        <Text style={S.appName}>{companyName || 'MFC App'}</Text>
+        <Text style={S.appVersion}>v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+        {Constants.nativeBuildVersion ? (
+          <Text style={S.appBuild}>Build {Constants.nativeBuildVersion}</Text>
+        ) : null}
       </TouchableOpacity>
     </ScrollView>
   );
