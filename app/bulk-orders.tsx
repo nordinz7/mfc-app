@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const DRAFT_KEY = '@mfc_bulk_draft';
+const DRAFT_KEY = '@orderbill_bulk_draft';
 
 interface BulkDraft {
   quantities: Record<string, string>;

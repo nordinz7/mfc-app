@@ -76,7 +76,7 @@ export default function SettingsScreen() {
   const [devTapCount, setDevTapCount] = useState(0);
 
   useEffect(() => {
-    AsyncStorage.getItem('@mfc_dev_mode').then(v => { if (v === 'true') setDevMode(true); });
+    AsyncStorage.getItem('@orderbill_dev_mode').then(v => { if (v === 'true') setDevMode(true); });
     getLastLocalBackupDate().then(setLastLocalBackup);
   }, []);
 
@@ -132,7 +132,7 @@ export default function SettingsScreen() {
       const next = prev + 1;
       if (next >= 7) {
         setDevMode(true);
-        AsyncStorage.setItem('@mfc_dev_mode', 'true');
+        AsyncStorage.setItem('@orderbill_dev_mode', 'true');
         Alert.alert('🛠 Developer Mode', 'Developer mode has been enabled!');
         return 0;
       }
@@ -144,7 +144,7 @@ export default function SettingsScreen() {
   const disableDevMode = useCallback(() => {
     Alert.alert('Disable Developer Mode', 'Are you sure?', [
       { text: tr.cancel, style: 'cancel' },
-      { text: tr.proceed, onPress: () => { setDevMode(false); AsyncStorage.setItem('@mfc_dev_mode', 'false'); } },
+      { text: tr.proceed, onPress: () => { setDevMode(false); AsyncStorage.setItem('@orderbill_dev_mode', 'false'); } },
     ]);
   }, [tr]);
 
@@ -351,7 +351,7 @@ export default function SettingsScreen() {
       {/* App info */}
       <TouchableOpacity style={S.appInfoCard} onPress={handleDevTap} activeOpacity={0.8}>
         <Image source={require('@/assets/images/icon.png')} style={S.appIcon} />
-        <Text style={S.appName}>{companyName || 'MFC App'}</Text>
+        <Text style={S.appName}>{companyName || 'orderBill'}</Text>
         <Text style={S.appVersion}>v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
         {Constants.nativeBuildVersion ? (
           <Text style={S.appBuild}>Build {Constants.nativeBuildVersion}</Text>

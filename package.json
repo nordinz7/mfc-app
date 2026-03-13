@@ -1,5 +1,5 @@
 {
-  "name": "mfc-app",
+  "name": "orderbill",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {

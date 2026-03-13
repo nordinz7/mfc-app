@@ -1,16 +1,17 @@
 {
   "expo": {
-    "name": "mfc-app",
-    "slug": "mfc-app",
-    "version": "1.0.0",
+    "name": "orderBill",
+    "slug": "orderbill",
+    "version": "0.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mfcapp",
+    "scheme": "orderbill",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
+    "jsEngine": "hermes",
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -18,7 +19,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.nordindev.mfcapp"
+      "package": "com.nordinopenlabs.orderbill"
     },
     "web": {
       "output": "static",

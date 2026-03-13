@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const DRAFT_KEY = '@mfc_bulk_payment_draft';
+const DRAFT_KEY = '@orderbill_bulk_payment_draft';
 
 const PAYMENT_METHODS = [
   { key: 'cash', label: 'Cash', icon: 'cash' as const },

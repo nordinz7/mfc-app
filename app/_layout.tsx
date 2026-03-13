@@ -114,7 +114,7 @@ export default function RootLayout() {
   return (
     <SettingsProvider>
       <Suspense fallback={<LoadingFallback />}>
-        <SQLiteProvider databaseName="mfc.db" onInit={initDatabase}>
+        <SQLiteProvider databaseName="orderbill.db" onInit={initDatabase}>
           <InnerLayout />
         </SQLiteProvider>
       </Suspense>

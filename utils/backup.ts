@@ -7,9 +7,9 @@ import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { Alert } from 'react-native';
 
-const LAST_BACKUP_KEY = '@mfc_last_backup';
-const LAST_LOCAL_BACKUP_KEY = '@mfc_last_local_backup';
-const BACKUP_PREFIX = 'mfc-auto-backup-';
+const LAST_BACKUP_KEY = '@orderbill_last_backup';
+const LAST_LOCAL_BACKUP_KEY = '@orderbill_last_local_backup';
+const BACKUP_PREFIX = 'orderbill-backup-';
 
 /** Returns a user-friendly path string for the auto-backup directory. */
 export function getBackupDirectoryPath(): string {

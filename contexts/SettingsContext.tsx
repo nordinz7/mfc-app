@@ -34,14 +34,14 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-const THEME_KEY = '@mfc_theme';
-const LANG_KEY  = '@mfc_lang';
-const COMPANY_NAME_KEY  = '@mfc_company_name';
-const COMPANY_PLACE_KEY = '@mfc_company_place';
-const COMPANY_PHONE_KEY = '@mfc_company_phone';
-const DEFAULT_ORDER_DESC_KEY = '@mfc_default_order_desc';
-const CURRENCY_SYMBOL_KEY = '@mfc_currency_symbol';
-const COUNTRY_CODE_KEY = '@mfc_country_code';
+const THEME_KEY = '@orderbill_theme';
+const LANG_KEY  = '@orderbill_lang';
+const COMPANY_NAME_KEY  = '@orderbill_company_name';
+const COMPANY_PLACE_KEY = '@orderbill_company_place';
+const COMPANY_PHONE_KEY = '@orderbill_company_phone';
+const DEFAULT_ORDER_DESC_KEY = '@orderbill_default_order_desc';
+const CURRENCY_SYMBOL_KEY = '@orderbill_currency_symbol';
+const COUNTRY_CODE_KEY = '@orderbill_country_code';
 
 const DEFAULT_COMPANY_NAME  = 'My Company';
 const DEFAULT_COMPANY_PLACE = 'My City';
